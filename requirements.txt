@@ -1,0 +1,2 @@
+robin-stocks==1.7.1
+pandas==1.2.1

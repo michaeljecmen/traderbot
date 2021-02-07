@@ -1,0 +1,6 @@
+# don't commit the venv, binaries differ by system and need to be installed separately
+env/
+
+# don't commit the config file, it has sensitive information
+# defensively, we probably don't want any json files committed
+*.json
