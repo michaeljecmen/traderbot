@@ -20,7 +20,9 @@ not expecting too much.
 	<li>Clone this repo</li>
     <li>
         Initialize a python virtual environment in your local repo with:
-            <p>python3 -m venv env</p>
+        ```
+        python3 -m venv env
+        ```
     </li>
     <li>
         Activate the venv:<br>
