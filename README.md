@@ -20,13 +20,11 @@ not expecting too much.
 	<li>Clone this repo</li>
     <li>
         Initialize a python virtual environment in your local repo with:
-        ```
-        python3 -m venv env
-        ```
+        <code>python3 -m venv env</code>, installing python3 beforehand if necessary
     </li>
     <li>
-        Activate the venv:<br>
-        source env/bin/activate
+        Activate the venv by running:<code>
+        source env/bin/activate</code>
         <br>
         (run <code>deactivate</code> or close and reopen the terminal to deactivate the venv)
     </li>
@@ -35,17 +33,18 @@ not expecting too much.
         to install the necessary dependencies and ensure
         we're working with the same versions of packages
     </li>
-    <li>Create a file <code>config.json</code> and populate it with the following data:<br>
-        <p>{</p>
-            <p>"username":"&ltyour username&gt"</p>
-            <p>"password":"&ltyour password&gt"</p>
-        <p>}</p>
+    <li>
+        Create a file <code>config.json</code>, copy and paste the contents from <code>example.json</code>, and fill in all fields. Note: the <code>mfa-setup-code</code> field is optional, leave it blank or remove it if you don't have multi-factor authentication enabled on your Robinhood account. <br><br>To get this code, navigate <a href="https://robinhood.com/account/settings">here</a>, then, from the <b>Security</b> tab find the dropdown for <b>Two-Factor Authentication</b>. If you already have 2FA enabled, disable and re-enable it. Select <b>Authentication App</b>, then click <b>Can't scan it?</b> at the bottom of the page, under the QR code. An alphanumeric code should appear. Copy it, put the following line in your <code>config.json</code> file: <code>"mfa-setup-code": "&lt;YOUR_CODE&gt;"</code>, then run the following command with it: <code>python3 mfa-setup.py &lt;YOUR_CODE&gt;</code>. The script will respond with the 6 digit code that RH will prompt for. Just run the script again if another code is prompted for or if the first one is rejected, as the time-cycles for these codes are pretty short. The bot will now log in using MFA, provided you updated <code>config.json</code> with the setup code as described earlier this step.
     </li>
 </ol>
 
 # TODOs
-follow this tutorial and make it so MFA code is unneeded
 https://www.activestate.com/blog/how-to-build-an-algorithmic-trading-bot/
 https://pypi.org/project/robin-stocks/
 ^ put the step for this one in the usage and installation process part too
+add support for a log file instead of console output, then email that file to the user every so often
+email support for real time issues
 
+# Warnings: This is technically against RH ToS?
+"keep the day trade counts humanlike and maybe don't trade all day every day via crypto like I was.  I think that was the 2 things that got me noticed"
+generally &lt; 500 trades per day is a good place to be

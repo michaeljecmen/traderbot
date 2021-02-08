@@ -2,5 +2,4 @@
 env/
 
 # don't commit the config file, it has sensitive information
-# defensively, we probably don't want any json files committed
-*.json
+config.json

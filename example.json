@@ -1,0 +1,5 @@
+{
+    "username": "johndoe@example.com",
+    "password": "abc123",
+    "mfa-setup-code": "REMOVE THIS FIELD IF YOU DO NOT HAVE 2FA ENABLED ON YOUR RH ACCOUNT"
+}
