@@ -25,7 +25,7 @@ def get_json_dict():
         usr = data.get("username", "_")
         pw = data.get("password", "_")
         if usr == "_" or pw == "_":
-            print("\"username\" and \"password\" must be defined in config.json")
+            print("\"username\" and \"password\" must be defined in config.json -- see example.json for how to do this")
             sys.exit(1)
         return data
     except FileNotFoundError:
@@ -41,10 +41,18 @@ username = config["username"]
 password = config["password"]
 
 # only use mfa login if it is enabled
-mfa_code=''
+mfa_code=None
 if "mfa-setup-code" in config.keys():
     # gets current mfa code
     totp = pyotp.TOTP(config["mfa-setup-code"]).now()
 login = r.login(username, password, mfa_code=mfa_code)
 
 print("logged in as user {}".format(username))
+
+
+TRADE_LIMIT=config.get("max-trades-per-day", None)
+#TODO: make trades
+
+# tidy up after ourselves
+r.logout()
+print("logged out user {}".format(username))

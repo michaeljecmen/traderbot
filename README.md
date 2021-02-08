@@ -15,7 +15,7 @@ Never done anything like this, and expecting to have some
 fun regardless of the bot's success -- in that regard I am 
 not expecting too much.
 
-# Usage and Installation Process
+# Installation Process
 <ol>
 	<li>Clone this repo</li>
     <li>
@@ -38,13 +38,18 @@ not expecting too much.
     </li>
 </ol>
 
+# Usage
+TODO
+
+# Configurations
+Increase <code>max-trades-per-day</code> at your own risk. As of the time of publication, 500/day was a good boundary for not getting your account flagged. Note
+that some users of the RH trading API have noted getting their accounts flagged after high frequency trading, where some users have gone upwards of 2000 and been fine.
+According to one user who got their account flagged: "keep the day trade counts humanlike and maybe don't trade all day every day via crypto like I was.  I think those were the 2 things that got me noticed." Anyhow, increase this value at your own risk. Removing this key from the config file will let the bot loose -- it will trade with no cap on daily trades.
+
 # TODOs
 https://www.activestate.com/blog/how-to-build-an-algorithmic-trading-bot/
 https://pypi.org/project/robin-stocks/
 ^ put the step for this one in the usage and installation process part too
 add support for a log file instead of console output, then email that file to the user every so often
 email support for real time issues
-
-# Warnings: This is technically against RH ToS?
-"keep the day trade counts humanlike and maybe don't trade all day every day via crypto like I was.  I think that was the 2 things that got me noticed"
-generally &lt; 500 trades per day is a good place to be
+rerun the main script every 24hr
