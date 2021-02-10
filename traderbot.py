@@ -51,7 +51,9 @@ print("logged in as user {}".format(username))
 
 
 TRADE_LIMIT=config.get("max-trades-per-day", None)
+
 #TODO: make trades
+
 
 # tidy up after ourselves
 r.logout()

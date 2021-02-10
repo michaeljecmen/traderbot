@@ -53,3 +53,5 @@ https://pypi.org/project/robin-stocks/
 add support for a log file instead of console output, then email that file to the user every so often
 email support for real time issues
 rerun the main script every 24hr
+
+switch to alpaca completely
