@@ -56,7 +56,8 @@ Change these fields in the <code>config.json</code> configuration file at your o
 ### max-trades-per-day
 Increase <code>max-trades-per-day</code> at your own risk. As of the time of publication, 500/day was a good boundary for not getting your account flagged. Note
 that some users of the RH trading API have noted getting their accounts flagged after HFT of ~500/day, where some users have gone upwards of 2000 and been fine.
-According to one user who got their account flagged: "keep the day trade counts humanlike and maybe don't trade all day every day via crypto like I was.  I think those were the 2 things that got me noticed." Anyhow, increase this value at your own risk. Removing this key from the config file will let the bot loose -- it will trade with no cap on daily trades.
+According to one user who got their account flagged: "keep the day trade counts humanlike and maybe don't trade all day every day via crypto like I was.  I think those were the 2 things that got me noticed." Anyhow, increase this value at your own risk. Removing this key from the config file will let the bot loose -- it will trade with no cap on daily trades. I set this to default at 300 per day, and will test these theories with my own RH
+account before publishing the bot.
 
 ### start-of-day and end-of-day
 If your Robinhood account has access to after-hours and/or pre-market trading, go ahead and change these. Otherwise, stick to the 9:30 -> 16:00 EST normal market hours.

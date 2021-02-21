@@ -1,9 +1,10 @@
 {
     "username": "johndoe@example.com",
     "password": "abc123",
-    "max-trades-per-day": "500",
+    "max-trades-per-day": 300,
     "polygon-api-key": "ABCDEFGHIJKLMNOP",
     "mfa-setup-code": "REMOVE THIS FIELD IF YOU DO NOT HAVE 2FA ENABLED ON YOUR RH ACCOUNT",
-    "start-of-day": "9:30=EST",
-    "end-of-day": "16:00=EST"
+    "time-zone-pandas-market-calendars": "EST",
+    "start-of-day": "9:30",
+    "end-of-day": "16:00"
 }
