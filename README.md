@@ -83,3 +83,6 @@ add support for a log file instead of console output, then email that file to th
 - hardware? run on little raspberry pi or something
 - flash green when profit? good jingle vs bad jingle?
 rerun the main script every 24hr
+
+consider switching to TDA with robin_stocks 2.0.0 if accounts get flagged,
+TDA has a public api and is more lenient I believe
