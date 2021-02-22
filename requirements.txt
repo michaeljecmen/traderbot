@@ -2,4 +2,4 @@ robin-stocks==2.0.0
 pandas==1.2.1
 pandas_market_calendars==1.6.1
 polygon-api-client==0.1.9
-yahoo-finance==1.4.0
+yfinance==0.1.55

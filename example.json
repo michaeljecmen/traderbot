@@ -6,5 +6,12 @@
     "mfa-setup-code": "REMOVE THIS FIELD IF YOU DO NOT HAVE 2FA ENABLED ON YOUR RH ACCOUNT",
     "time-zone-pandas-market-calendars": "EST",
     "start-of-day": "9:30",
-    "end-of-day": "16:00"
+    "end-of-day": "16:00",
+    "tickers": [
+        "AMZN",
+        "AAPL",
+        "FB",
+        "GOOG",
+        "NFLX"
+    ]
 }

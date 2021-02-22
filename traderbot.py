@@ -9,7 +9,7 @@ import robin_stocks.robinhood as r
 import pandas as pd
 import pandas_market_calendars as mcal
 import pyotp
-from yahoo_finance import Share
+import yfinance as yf
 
 # all filescope constants will be configured in the config.json
 CONFIG_FILENAME="config.json"
@@ -90,7 +90,6 @@ def get_time_until_market_open():
 def block_until_market_open():
     time_until_open = get_time_until_market_open()
     zero_time = timedelta()
-    print("begin waiting until market open. time remaining:", time_until_open)
     last_print = time_until_open
     while time_until_open > zero_time:
         # TODO ensure this works when the market is actually open
@@ -118,6 +117,7 @@ def get_json_dict():
     The following fields are required (and mandated by this function):
         username
         password
+        tickers
     """
     try:
         path_to_conf = pathlib.Path(CONFIG_FILENAME)
@@ -126,9 +126,11 @@ def get_json_dict():
             data = json.load(json_file)
         usr = data.get("username", "_")
         pw = data.get("password", "_")
-        if usr == "_" or pw == "_":
-            print("\"username\" and \"password\" must be defined in config.json -- see example.json for how to do this")
+        tickers = data.get("tickers", "_")
+        if usr == "_" or pw == "_" or tickers == "_":
+            print("\"username\" and \"password\" and \"tickers\" must be defined in config.json -- see example.json for how to do this")
             sys.exit(1)
+        # TODO enforce that all tickers are all real & tradeable
         return data
     except FileNotFoundError:
         print("error: config.json file not found in current directory")
@@ -142,13 +144,13 @@ def get_json_dict():
 config = get_json_dict()
 USERNAME = config["username"]
 PASSWORD = config["password"]
+TICKERS = config["tickers"]
 TIME_ZONE = config.get("time-zone-pandas-market-calendars", "America/New_York")
 full_start_time_str = config.get("start-of-day", "09:30") + "={}".format(TIME_ZONE)
 full_end_time_str = config.get("end-of-day", "16:00") + "={}".format(TIME_ZONE)
 START_OF_DAY = datetime.strptime(full_start_time_str, "%H:%M=%Z").time()
 END_OF_DAY = datetime.strptime(full_end_time_str, "%H:%M=%Z").time()
 TRADE_LIMIT = config.get("max-trades-per-day", None)
-HAVE_GENERATED_HUMANLIKE_PARAMETERS = False
 
 login = log_in_to_robinhood()
 
@@ -164,7 +166,10 @@ block_until_market_open()
 #   market buy when short moving avg crosses up the long moving avg
 #   per-thread: market sell when profit of 1% or loss of 1%
 #   spawn thread for each open position that handles the opening and closing
-
+for s in config["tickers"]:
+    print(s)
+    share = yf.Ticker(s)
+    print(share.history(period="max"))
 
 # tidy up after ourselves
 r.logout()
