@@ -4,6 +4,7 @@ import pathlib
 import sys
 from datetime import datetime, date, timedelta
 from random import randrange
+import threading
 
 import robin_stocks.robinhood as r
 import pandas as pd
@@ -11,8 +12,23 @@ import pandas_market_calendars as mcal
 import pyotp
 import yfinance as yf
 
+from trading_thread import TradingThread
+
 # all filescope constants will be configured in the config.json
-CONFIG_FILENAME="config.json"
+CONFIG_FILENAME = "config.json"
+
+# do not change these -- will be overwritten by config.json reading anyways
+# only at filescope for scoping issues, should be treated as constants by all 
+# functions and threads (will only be read after config reading)
+USERNAME = ""
+PASSWORD = ""
+TICKERS = ""
+PAPER_TRADING = ""
+TIME_ZONE = ""
+START_OF_DAY = ""
+END_OF_DAY = ""
+TRADE_LIMIT = ""
+CONFIG = ""
 
 # "humanlike" parameters to be chosen randomly every day
 def pick_humanlike_start_time():
@@ -30,9 +46,17 @@ def pick_humanlike_start_time():
 
 
 def pick_humanlike_end_time():
-    # pick start time within an hour of market close
+    # give ourselves a 5 minute window on the upper end, don't want to 
+    # leave it too close if we need to close out positions at EOD
+    minute = END_OF_DAY.minute-5
+    hour = END_OF_DAY.hour
+    if minute < 0:
+        minute = 60 + minute
+        hour = hour - 1
+    
+    # pick end time within an hour of market close
     # need dummy year month day here
-    upper_bound = datetime(1,1,1, END_OF_DAY.hour, END_OF_DAY.minute, END_OF_DAY.second)
+    upper_bound = datetime(1,1,1, hour, minute, END_OF_DAY.second)
     lower_bound = upper_bound - timedelta(minutes=60)
 
     # interval from 0 to this value in seconds is our go-range
@@ -64,7 +88,8 @@ def generate_humanlike_parameters():
 def get_next_market_open_time():
     """Based on the current time, gets the next time the market will be open.
     
-    Returns a pandas.Timestamp object."""
+    If the market is open today, returns today's market open time. Returns a pandas.Timestamp object.
+    Time returned is in UTC."""
     # assume NYSE, we aren't doing crazy shit here
     nyse = mcal.get_calendar('NYSE')
     
@@ -82,30 +107,51 @@ def get_next_market_open_time():
 def get_time_until_market_open():
     """Return the amount of time until the market reopens."""
     next_open = get_next_market_open_time()
+    # returns time in utc, so use utc as well
     now = datetime.utcnow()
     time_until_open = next_open - now
     return time_until_open
     
 
 def block_until_market_open():
+    """Block until market open.
+    
+    Does pre-market work as soon as the loop is entered, exactly once."""
     time_until_open = get_time_until_market_open()
     zero_time = timedelta()
     last_print = time_until_open
     while time_until_open > zero_time:
-        # TODO ensure this works when the market is actually open
         if last_print - time_until_open > timedelta(hours=1):
             print("still waiting until market open. time remaining:", time_until_open)
             last_print = time_until_open
         # update timedelta
         time_until_open = get_time_until_market_open()
+    print("market is open")
 
+
+def block_until_start_trading():
+    """Block until the pre-determined time when we will start trading.
+    
+    Market is open at this time, so statistics can be gathered and 
+    updated in this loop."""
+    now = datetime.now()
+    start_of_day_datetime = datetime(now.year, now.month, now.day, START_OF_DAY.hour, START_OF_DAY.minute, START_OF_DAY.second, START_OF_DAY.microsecond)
+    time_until_start_trading = start_of_day_datetime - now
+    zero_time = timedelta()
+    last_print = time_until_start_trading
+    while time_until_start_trading > zero_time:
+        if last_print - time_until_start_trading > timedelta(minutes=5):
+            print("market is open. will start trading in: ", time_until_start_trading)
+            last_print = time_until_start_trading
+        time_until_start_trading = start_of_day_datetime - now
+    print("beginning trading")
 
 def log_in_to_robinhood():
     # only use mfa login if it is enabled
     mfa_code=None
-    if "mfa-setup-code" in config.keys():
+    if "mfa-setup-code" in CONFIG.keys():
         # gets current mfa code
-        totp = pyotp.TOTP(config["mfa-setup-code"]).now()
+        totp = pyotp.TOTP(CONFIG["mfa-setup-code"]).now()
         print("DEBUG: current mfa code:", totp)
     login = r.login(USERNAME, PASSWORD, mfa_code=mfa_code)
     print("logged in as user {}".format(USERNAME))
@@ -118,6 +164,7 @@ def get_json_dict():
         username
         password
         tickers
+        paper-trading
     """
     try:
         path_to_conf = pathlib.Path(CONFIG_FILENAME)
@@ -127,7 +174,8 @@ def get_json_dict():
         usr = data.get("username", "_")
         pw = data.get("password", "_")
         tickers = data.get("tickers", "_")
-        if usr == "_" or pw == "_" or tickers == "_":
+        pt = data.get("paper-trading", "_")
+        if usr == "_" or pw == "_" or tickers == "_" or pt == "_":
             print("\"username\" and \"password\" and \"tickers\" must be defined in config.json -- see example.json for how to do this")
             sys.exit(1)
         # TODO enforce that all tickers are all real & tradeable
@@ -140,56 +188,83 @@ def get_json_dict():
         sys.exit(1)
 
 
-# get info from config file and log in
-config = get_json_dict()
-USERNAME = config["username"]
-PASSWORD = config["password"]
-TICKERS = config["tickers"]
-TIME_ZONE = config.get("time-zone-pandas-market-calendars", "America/New_York")
-full_start_time_str = config.get("start-of-day", "09:30") + "={}".format(TIME_ZONE)
-full_end_time_str = config.get("end-of-day", "16:00") + "={}".format(TIME_ZONE)
-START_OF_DAY = datetime.strptime(full_start_time_str, "%H:%M=%Z").time()
-END_OF_DAY = datetime.strptime(full_end_time_str, "%H:%M=%Z").time()
-TRADE_LIMIT = config.get("max-trades-per-day", None)
+def run_traderbot():
+    """Main function for this module.
+    
+    Spawns a thread for each ticker that trades on that symbol
+    for the duration of the day."""
+    # get info from config file and log in
+    global USERNAME, PASSWORD, TICKERS, PAPER_TRADING, TIME_ZONE
+    global START_OF_DAY, END_OF_DAY, TRADE_LIMIT, CONFIG
+    CONFIG = get_json_dict()
+    USERNAME = CONFIG["username"]
+    PASSWORD = CONFIG["password"]
+    TICKERS = CONFIG["tickers"]
+    PAPER_TRADING = CONFIG["paper-trading"]
+    TIME_ZONE = CONFIG.get("time-zone-pandas-market-calendars", "America/New_York")
+    full_start_time_str = CONFIG.get("start-of-day", "09:30") + "={}".format(TIME_ZONE)
+    full_end_time_str = CONFIG.get("end-of-day", "16:00") + "={}".format(TIME_ZONE)
+    START_OF_DAY = datetime.strptime(full_start_time_str, "%H:%M=%Z").time()
+    END_OF_DAY = datetime.strptime(full_end_time_str, "%H:%M=%Z").time()
+    TRADE_LIMIT = CONFIG.get("max-trades-per-day", None)
 
-login = log_in_to_robinhood()
+    login = log_in_to_robinhood()
 
-# generate parameters so we don't get flagged
-START_OF_DAY, END_OF_DAY, TRADE_LIMIT = generate_humanlike_parameters()
+    # generate parameters so we don't get flagged
+    START_OF_DAY, END_OF_DAY, TRADE_LIMIT = generate_humanlike_parameters()
 
-# busy-spin until market open
-block_until_market_open()
+    # spawn thread for each ticker
+    threads = []
+    for ticker in TICKERS:
+        threads.append(TradingThread(ticker, END_OF_DAY))
 
-#TODO: make trades until market closes
+    # busy-spin until market open
+    block_until_market_open()
 
-# general idea: 
-#   market buy when short moving avg crosses up the long moving avg
-#   per-thread: market sell when profit of 1% or loss of 1%
-#   spawn thread for each open position that handles the opening and closing
-for s in config["tickers"]:
-    print(s)
-    share = yf.Ticker(s)
-    print(share.history(period="max"))
+    # busy spin until we decided to start trading
+    block_until_start_trading()
 
-# tidy up after ourselves
-r.logout()
-print("logged out user {}".format(USERNAME))
+    # start all threads
+    for t in threads:
+        t.start()
 
-# TODO login expires after a day, so expect that the user runs the script once 
-# per day (probably best after hours) and if any login trouble handle it on your own
+    # wait for all threads to finish
+    for t in threads:
+        t.join()
 
-# each traded stock spawns a thread that manages its own state machine until just before end of day when
-# ordered to close positions. states include:
-# not bought in
-# bought in and making > 1% (above profit thresh) -- hold and sell when peak or crosses back down thresh?
-# bought in and making < 1% hold until loss of 1% or state changes
-# EOD state: close out position soon, or absolute sell if close to market close (within 5 minutes, say)
+    # tidy up after ourselves
+    r.logout()
+    print("logged out user {}".format(USERNAME))
 
-# ideas for data: steal data from polygon using free trial then maintain that initial data myself
+    # general idea: 
+    #   market buy when short moving avg crosses up the long moving avg
+    #   per-thread: market sell when profit of 1% or loss of 1%
+    #   spawn thread for each open position that handles the opening and closing
+    # for s in config["tickers"]:
+    #     print(s)
+    #     share = yf.Ticker(s)
+    #     print(share.history(period="max"))
 
-# how much per trade? come up with a confidence factor in the success of the trade and invest 
-# the buying power $ I have proportionially?
+    # TODO login expires after a day, so expect that the user runs the script once 
+    # per day (probably best after hours) and if any login trouble handle it on your own
 
-# use yahoo finance or pandas data -- free and dope
-# https://github.com/SaltyDalty0/Finances/blob/main/quick_stonks.py
-# https://pypi.org/project/yahoo-finance/
+    # each traded stock spawns a thread that manages its own state machine until just before end of day when
+    # ordered to close positions. states include:
+    # not bought in
+    # bought in and making > 1% (above profit thresh) -- hold and sell when peak or crosses back down thresh?
+    # bought in and making < 1% hold until loss of 1% or state changes
+    # EOD state: close out position soon, or absolute sell if close to market close (within 5 minutes, say)
+
+    # ideas for data: steal data from polygon using free trial then maintain that initial data myself
+
+    # how much per trade? come up with a confidence factor in the success of the trade and invest 
+    # the buying power $ I have proportionially?
+
+    # use yahoo finance or pandas data -- free and dope
+    # https://github.com/SaltyDalty0/Finances/blob/main/quick_stonks.py
+    # https://pypi.org/project/yahoo-finance/
+
+
+# TODO test this
+if __name__ == "__main__":
+    run_traderbot()

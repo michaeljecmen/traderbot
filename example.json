@@ -13,5 +13,6 @@
         "FB",
         "GOOG",
         "NFLX"
-    ]
+    ],
+    "paper-trading": true
 }
