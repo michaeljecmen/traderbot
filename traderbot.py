@@ -13,6 +13,9 @@ import pyotp
 import yfinance as yf
 
 from trading_thread import TradingThread
+from market_data import MarketData
+from market_time import MarketTime
+from holdings import Holdings
 
 # all filescope constants will be configured in the config.json
 CONFIG_FILENAME = "config.json"
@@ -146,6 +149,7 @@ def block_until_start_trading():
         time_until_start_trading = start_of_day_datetime - now
     print("beginning trading")
 
+
 def log_in_to_robinhood():
     # only use mfa login if it is enabled
     mfa_code=None
@@ -156,6 +160,7 @@ def log_in_to_robinhood():
     login = r.login(USERNAME, PASSWORD, mfa_code=mfa_code)
     print("logged in as user {}".format(USERNAME))
     return login
+
 
 def get_json_dict():
     """Return the json dictionary found in config.json, throwing otherwise.
@@ -207,26 +212,47 @@ def run_traderbot():
     START_OF_DAY = datetime.strptime(full_start_time_str, "%H:%M=%Z").time()
     END_OF_DAY = datetime.strptime(full_end_time_str, "%H:%M=%Z").time()
     TRADE_LIMIT = CONFIG.get("max-trades-per-day", None)
+    zero_time = timedelta()
 
     login = log_in_to_robinhood()
 
     # generate parameters so we don't get flagged
     START_OF_DAY, END_OF_DAY, TRADE_LIMIT = generate_humanlike_parameters()
 
+    # busy-spin until market open
+    block_until_market_open()
+
+    # these variables are shared by each trading thread. they are written by this
+    # main traderbot thread, and read by each trading thread individually
+    market_data = MarketData(TICKERS)
+    holdings = Holdings()
+    # now that market open is today, update EOD for time checking
+    now = datetime.now()
+    END_OF_DAY = datetime(now.year, now.month, now.day, END_OF_DAY.hour, END_OF_DAY.minute, END_OF_DAY.second, END_OF_DAY.microsecond)
+    market_time = MarketTime(END_OF_DAY)
+
     # spawn thread for each ticker
     threads = []
     for ticker in TICKERS:
-        threads.append(TradingThread(ticker, END_OF_DAY))
-
-    # busy-spin until market open
-    block_until_market_open()
+        threads.append(TradingThread(ticker, market_data, market_time, holdings))
 
     # busy spin until we decided to start trading
     block_until_start_trading()
 
+    # update before we start threads to avoid mass panic
+    market_data.update()
+    holdings.update()
+    market_time.update()
+
     # start all threads
     for t in threads:
         t.start()
+
+    # consider having two separate threads update holdings and prices
+    while market_time.is_time_left_to_trade():
+        market_data.update()
+        holdings.update()
+        market_time.update()
 
     # wait for all threads to finish
     for t in threads:

@@ -3,64 +3,82 @@
 import datetime
 from datetime import timedelta, datetime
 import threading
+import robin_stocks.robinhood as r
+from readerwriterlock import rwlock
+
+from market_data import MarketData
 
 class TradingThread (threading.Thread):
-    # these values will be overwritten during first thread construction
-    ZERO_TIME = timedelta()
-    END_OF_DAY = ""
-    time_until_close = ""
-    time_lock = threading.Lock()
-    # TODO confirm via lvalues that these are actually 1 per class (lock is same for all objects)
+    # lock to keep everything in order during construction
+    ctor_lock = threading.Lock()
 
-    def __init__(self, ticker, eod_time):
+    # these must be reader locked. they are updated by the outer thread
+    holdings = {}
+    market_data = {}
+    market_time = {}
+    # TODO confirm via pythonlvalues that these are actually 1 per class (lock is same for all objects)
+
+    def __init__(self, ticker, market_data, market_time, holdings):
         # safety first when setting class variables
         threading.Thread.__init__(self)
-        self.time_lock.acquire()
+        with self.ctor_lock:
+            self.ticker = ticker
+            self.position = None
 
-        self.ticker = ticker
-        now = datetime.now()
-        TradingThread.END_OF_DAY = datetime(now.year, now.month, now.day, eod_time.hour, eod_time.minute, eod_time.second, eod_time.microsecond)
-        # TODO determine if we have an open position and set a bool
-        # would be a mistake but should be defensive here
-        # also should have a position member, easier than calling RH api each time
-        self.update_time_left_to_trade()
+            # set shared concurrent data
+            TradingThread.market_data = market_data
+            TradingThread.market_time = market_time
+            TradingThread.holdings = holdings
 
-        self.time_lock.release()
+            self.currently_holding = self.is_position_open_check()
+            # TODO determine if we have an open position and set a bool
+            # would be a mistake but should be defensive here
+            # also should have a position member, easier than calling RH api each time
+
+
+    def is_position_open_check(self):
+        if position is not None:
+            return True
+        return False # TODO read from holdings and compare to None
 
 
     def run(self):
-        # TODO call the correct function based on whether or not we have an open position
-        with self.time_lock:
+        with self.ctor_lock:
             print("thread {} began".format(self.ticker))
+        # TODO call the correct function based on whether or not we have an open position
+        while self.market_time.is_time_left_to_trade():
+            with self.ctor_lock:
+                print("thread {} trading!".format(self.ticker))
+
+        # if no time left:
+        # robin_stocks.robinhood.orders.cancel_all_stock_orders()
+        # and also sell if open position
+
+
+    def open_position(self):
+        # TODO
+        
+        pass
 
 
     def close_position(self):
         # TODO close the position
-        pass
+        # when selling, confirm that all was sold via api
+        # robin_stocks.robinhood.orders.order_sell_fractional_by_quantity(symbol, quantity, timeInForce='gfd', priceType='bid_price', extendedHours=False, jsonify=True)
+        self.position = None
 
     
     def looking_to_buy(self):
-        while True:
+        # TODO
+        while self.is_time_left_to_trade():
             pass
     
 
     def looking_to_sell(self):
-        while True:
+        # TODO
+        while self.is_time_left_to_trade():
             pass
     
 
-    def update_time_left_to_trade(self):
-        # this function assumes ownership of time_lock
-        TradingThread.time_until_close = self.END_OF_DAY - datetime.now()
-
-
-    def is_time_left_to_trade(self):
-        # not too shabby python RAII
-        with self.time_lock:
-            # read first, if no time already then don't bother writing
-            if self.time_until_close <= self.ZERO_TIME:
-                return False
-
-            # otherwise update the time for everybody
-            self.update_time_left_to_trade()
-            return True
+    
+    

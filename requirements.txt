@@ -3,3 +3,4 @@ pandas==1.2.1
 pandas_market_calendars==1.6.1
 polygon-api-client==0.1.9
 yfinance==0.1.55
+readerwriterlock==1.0.8
