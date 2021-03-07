@@ -86,3 +86,8 @@ rerun the main script every 24hr
 
 consider switching to TDA with robin_stocks 2.0.0 if accounts get flagged,
 TDA has a public api and is more lenient I believe
+
+consider switching to alpaca -- they now support fractional trading and have 
+a much more algorithmic-friendly api
+
+NEED TO LOCK CALLS TO PRINT FOR DEBUGGING, GLOBAL PRINT LOCK

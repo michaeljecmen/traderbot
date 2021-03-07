@@ -220,7 +220,7 @@ def run_traderbot():
     START_OF_DAY, END_OF_DAY, TRADE_LIMIT = generate_humanlike_parameters()
 
     # busy-spin until market open
-    block_until_market_open()
+    #block_until_market_open()
 
     # these variables are shared by each trading thread. they are written by this
     # main traderbot thread, and read by each trading thread individually
@@ -237,7 +237,7 @@ def run_traderbot():
         threads.append(TradingThread(ticker, market_data, market_time, holdings))
 
     # busy spin until we decided to start trading
-    block_until_start_trading()
+    # block_until_start_trading()
 
     # update before we start threads to avoid mass panic
     market_data.update()
@@ -248,11 +248,11 @@ def run_traderbot():
     for t in threads:
         t.start()
 
-    # consider having two separate threads update holdings and prices
-    while market_time.is_time_left_to_trade():
-        market_data.update()
-        holdings.update()
-        market_time.update()
+    # # consider having two separate threads update holdings and prices
+    # while market_time.is_time_left_to_trade():
+    #     market_data.update()
+    #     holdings.update()
+    #     market_time.update()
 
     # wait for all threads to finish
     for t in threads:

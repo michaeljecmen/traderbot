@@ -37,7 +37,7 @@ class TradingThread (threading.Thread):
 
 
     def is_position_open_check(self):
-        if position is not None:
+        if self.position is not None:
             return True
         return False # TODO read from holdings and compare to None
 
@@ -46,10 +46,10 @@ class TradingThread (threading.Thread):
         with self.ctor_lock:
             print("thread {} began".format(self.ticker))
         # TODO call the correct function based on whether or not we have an open position
-        while self.market_time.is_time_left_to_trade():
+        if self.market_time.is_time_left_to_trade():
             with self.ctor_lock:
                 print("thread {} trading!".format(self.ticker))
-
+        
         # if no time left:
         # robin_stocks.robinhood.orders.cancel_all_stock_orders()
         # and also sell if open position
