@@ -2,6 +2,8 @@ from datetime import timedelta, datetime
 
 from readerwriterlock import rwlock
 
+from utilities import print_with_lock
+
 class MarketTime:
     """Threadsafe class for concurrent reads and writes to the 
     time left in market day for trading. Should be a singleton."""
@@ -27,6 +29,6 @@ class MarketTime:
             return self.time_until_close > self.ZERO_TIME
 
     def print_time(self):
-        print("---- MARKET TIME ----")
-        print("time until close:", self.time_until_close)
-        print("---------------------")
+        print_with_lock("---- MARKET TIME ----")
+        print_with_lock("time until close:", self.time_until_close)
+        print_with_lock("---------------------")

@@ -16,6 +16,7 @@ from trading_thread import TradingThread
 from market_data import MarketData
 from market_time import MarketTime
 from holdings import Holdings
+from utilities import print_with_lock
 
 # all filescope constants will be configured in the config.json
 CONFIG_FILENAME = "config.json"
@@ -78,13 +79,13 @@ def pick_humanlike_trade_cap():
 def generate_humanlike_parameters():
     # "today" means the next trading day
     todays_start_time = pick_humanlike_start_time()
-    print("param: will start trading today at:", todays_start_time)
+    print_with_lock("param: will start trading today at:", todays_start_time)
     
     todays_end_time = pick_humanlike_end_time()
-    print("param: will stop trading today at:", todays_end_time)
+    print_with_lock("param: will stop trading today at:", todays_end_time)
 
     todays_trade_cap = pick_humanlike_trade_cap()
-    print("param: will make a maximum of {} trades today".format(todays_trade_cap))
+    print_with_lock("param: will make a maximum of {} trades today".format(todays_trade_cap))
     return todays_start_time, todays_end_time, todays_trade_cap
 
 
@@ -125,11 +126,11 @@ def block_until_market_open():
     last_print = time_until_open
     while time_until_open > zero_time:
         if last_print - time_until_open > timedelta(hours=1):
-            print("still waiting until market open. time remaining:", time_until_open)
+            print_with_lock("still waiting until market open. time remaining:", time_until_open)
             last_print = time_until_open
         # update timedelta
         time_until_open = get_time_until_market_open()
-    print("market is open")
+    print_with_lock("market is open")
 
 
 def block_until_start_trading():
@@ -144,10 +145,10 @@ def block_until_start_trading():
     last_print = time_until_start_trading
     while time_until_start_trading > zero_time:
         if last_print - time_until_start_trading > timedelta(minutes=5):
-            print("market is open. will start trading in: ", time_until_start_trading)
+            print_with_lock("market is open. will start trading in: ", time_until_start_trading)
             last_print = time_until_start_trading
         time_until_start_trading = start_of_day_datetime - now
-    print("beginning trading")
+    print_with_lock("beginning trading")
 
 
 def log_in_to_robinhood():
@@ -156,9 +157,9 @@ def log_in_to_robinhood():
     if "mfa-setup-code" in CONFIG.keys():
         # gets current mfa code
         totp = pyotp.TOTP(CONFIG["mfa-setup-code"]).now()
-        print("DEBUG: current mfa code:", totp)
+        print_with_lock("DEBUG: current mfa code:", totp)
     login = r.login(USERNAME, PASSWORD, mfa_code=mfa_code)
-    print("logged in as user {}".format(USERNAME))
+    print_with_lock("logged in as user {}".format(USERNAME))
     return login
 
 
@@ -181,15 +182,15 @@ def get_json_dict():
         tickers = data.get("tickers", "_")
         pt = data.get("paper-trading", "_")
         if usr == "_" or pw == "_" or tickers == "_" or pt == "_":
-            print("\"username\" and \"password\" and \"tickers\" must be defined in config.json -- see example.json for how to do this")
+            print_with_lock("\"username\" and \"password\" and \"tickers\" must be defined in config.json -- see example.json for how to do this")
             sys.exit(1)
         # TODO enforce that all tickers are all real & tradeable
         return data
     except FileNotFoundError:
-        print("error: config.json file not found in current directory")
+        print_with_lock("error: config.json file not found in current directory")
         sys.exit(1)
     except json.JSONDecodeError:
-        print("error: config.json incorrectly formatted")
+        print_with_lock("error: config.json incorrectly formatted")
         sys.exit(1)
 
 
@@ -260,16 +261,16 @@ def run_traderbot():
 
     # tidy up after ourselves
     r.logout()
-    print("logged out user {}".format(USERNAME))
+    print_with_lock("logged out user {}".format(USERNAME))
 
     # general idea: 
     #   market buy when short moving avg crosses up the long moving avg
     #   per-thread: market sell when profit of 1% or loss of 1%
     #   spawn thread for each open position that handles the opening and closing
     # for s in config["tickers"]:
-    #     print(s)
+    #     print_with_lock(s)
     #     share = yf.Ticker(s)
-    #     print(share.history(period="max"))
+    #     print_with_lock(share.history(period="max"))
 
     # TODO login expires after a day, so expect that the user runs the script once 
     # per day (probably best after hours) and if any login trouble handle it on your own

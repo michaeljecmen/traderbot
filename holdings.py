@@ -1,6 +1,8 @@
 from readerwriterlock import rwlock
 import robin_stocks.robinhood as r
 
+from utilities import print_with_lock
+
 class Holdings:
     """Threadsafe class for managing holdings across multiple trading threads
     and a single master updater thread. Should be a singleton."""
@@ -23,6 +25,6 @@ class Holdings:
             return self.holdings[ticker]
     
     def print_holdings(self):
-        print("----- HOLDINGS ------")
-        print(self.holdings)
-        print("---------------------")
+        print_with_lock("----- HOLDINGS ------")
+        print_with_lock(self.holdings)
+        print_with_lock("---------------------")

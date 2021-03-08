@@ -7,6 +7,7 @@ import robin_stocks.robinhood as r
 from readerwriterlock import rwlock
 
 from market_data import MarketData
+from utilities import print_with_lock
 
 class TradingThread (threading.Thread):
     # lock to keep everything in order during construction
@@ -44,11 +45,11 @@ class TradingThread (threading.Thread):
 
     def run(self):
         with self.ctor_lock:
-            print("thread {} began".format(self.ticker))
+            print_with_lock("thread {} began".format(self.ticker))
         # TODO call the correct function based on whether or not we have an open position
         if self.market_time.is_time_left_to_trade():
             with self.ctor_lock:
-                print("thread {} trading!".format(self.ticker))
+                print_with_lock("thread {} trading!".format(self.ticker))
         
         # if no time left:
         # robin_stocks.robinhood.orders.cancel_all_stock_orders()
@@ -78,7 +79,3 @@ class TradingThread (threading.Thread):
         # TODO
         while self.is_time_left_to_trade():
             pass
-    
-
-    
-    

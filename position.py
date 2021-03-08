@@ -2,12 +2,14 @@ import robin_stocks.robinhood as r
 
 from market_data import MarketData
 
+from utilities import print_with_lock
+
 class OpenStockPosition:
     """Class used for real trading."""
     def __init__(self, ticker, budget):
         # open the position given the allocated budget
         resp = r.orders.order_buy_fractional_by_price(ticker, budget, timeInForce='gfd', extendedHours=False, jsonify=True)
-        print("ORDER RESPONSE DICT: ", resp)
+        print_with_lock("ORDER RESPONSE DICT: ", resp)
         # self.quantity = resp["quantity"]
         # self.open_price = resp["price"]
         self.ticker = ticker
