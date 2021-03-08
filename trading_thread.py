@@ -8,6 +8,7 @@ from readerwriterlock import rwlock
 
 from market_data import MarketData
 from utilities import print_with_lock
+import strategies.long_vs_short_moving_average
 
 class TradingThread (threading.Thread):
     # lock to keep everything in order during construction
@@ -19,12 +20,13 @@ class TradingThread (threading.Thread):
     market_time = {}
     # TODO confirm via pythonlvalues that these are actually 1 per class (lock is same for all objects)
 
-    def __init__(self, ticker, market_data, market_time, holdings):
+    def __init__(self, ticker, market_data, market_time, holdings, strategy):
         # safety first when setting class variables
         threading.Thread.__init__(self)
         with self.ctor_lock:
             self.ticker = ticker
             self.position = None
+            self.strategy = strategy
 
             # set shared concurrent data
             TradingThread.market_data = market_data
@@ -47,9 +49,9 @@ class TradingThread (threading.Thread):
         with self.ctor_lock:
             print_with_lock("thread {} began".format(self.ticker))
         # TODO call the correct function based on whether or not we have an open position
-        if self.market_time.is_time_left_to_trade():
-            with self.ctor_lock:
-                print_with_lock("thread {} trading!".format(self.ticker))
+        while self.market_time.is_time_left_to_trade():
+            if self.strategy.should_buy_on_tick():
+                self.open_position()      
         
         # if no time left:
         # robin_stocks.robinhood.orders.cancel_all_stock_orders()
@@ -58,7 +60,6 @@ class TradingThread (threading.Thread):
 
     def open_position(self):
         # TODO
-        
         pass
 
 

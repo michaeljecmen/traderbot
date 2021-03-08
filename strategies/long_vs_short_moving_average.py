@@ -8,6 +8,7 @@ class LongShortMovingAverage(Strategy):
     moving average for the given ticker."""
 
     def __init__(self, market_data, ticker, short, long):
+        super().__init__()
         self.short_moving_avg = MovingAverage(market_data, ticker, short)
         self.long_moving_avg = MovingAverage(market_data, ticker, long)
 
