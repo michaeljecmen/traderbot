@@ -17,7 +17,7 @@ class Holdings:
             self.holdings = r.account.build_holdings(with_dividends=False)
         
         # for debugging purposes
-        self.print_holdings()
+        # self.print_holdings()
         
     def get_current_position_for_ticker(self, ticker):
         """Returns None if no open position for the ticker."""

@@ -23,7 +23,7 @@ class MarketData:
             self.data = r.stocks.get_latest_price(self.tickers, priceType=None, includeExtendedHours=True)
 
         # for debugging purposes only
-        self.print_data()
+        # self.print_data()
 
 
     def get_data_for_ticker(self, ticker):

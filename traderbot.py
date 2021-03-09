@@ -16,6 +16,8 @@ from trading_thread import TradingThread
 from market_data import MarketData
 from market_time import MarketTime
 from holdings import Holdings
+from buying_power import BuyingPower
+from strategies.long_vs_short_moving_average import LongShortMovingAverage
 from utilities import print_with_lock
 
 # all filescope constants will be configured in the config.json
@@ -181,8 +183,12 @@ def get_json_dict():
         pw = data.get("password", "_")
         tickers = data.get("tickers", "_")
         pt = data.get("paper-trading", "_")
-        if usr == "_" or pw == "_" or tickers == "_" or pt == "_":
-            print_with_lock("\"username\" and \"password\" and \"tickers\" must be defined in config.json -- see example.json for how to do this")
+        max_loss = data.get("max-loss-percent", "_")
+        take_profit = data.get("take-profit-percent", "_") # TODO in the future allow this to be per-ticker
+        spend_percent = data.get("spend-percent", "_")
+        if usr == "_" or pw == "_" or tickers == "_" or pt == "_" or max_loss == '_' or take_profit == '_' or spend_percent == '_':
+            print_with_lock("\"username\", \"password\", \"tickers\", \"paper-trading\", \"max-loss-percent\", "
+             "\"take-profit-percent\", and \"spend-percent\" must be defined in config.json -- see example.json for how to do this")
             sys.exit(1)
         # TODO enforce that all tickers are all real & tradeable
         return data
@@ -206,6 +212,9 @@ def run_traderbot():
     USERNAME = CONFIG["username"]
     PASSWORD = CONFIG["password"]
     TICKERS = CONFIG["tickers"]
+    MAX_LOSS_PERCENT = CONFIG["max-loss-percent"]
+    TAKE_PROFIT_PERCENT = CONFIG["take-profit-percent"]
+    SPEND_PERCENT = CONFIG["spend-percent"]
     PAPER_TRADING = CONFIG["paper-trading"]
     TIME_ZONE = CONFIG.get("time-zone-pandas-market-calendars", "America/New_York")
     full_start_time_str = CONFIG.get("start-of-day", "09:30") + "={}".format(TIME_ZONE)
@@ -227,6 +236,7 @@ def run_traderbot():
     # main traderbot thread, and read by each trading thread individually
     market_data = MarketData(TICKERS)
     holdings = Holdings()
+    buying_power = BuyingPower(SPEND_PERCENT)
     # now that market open is today, update EOD for time checking
     now = datetime.now()
     END_OF_DAY = datetime(now.year, now.month, now.day, END_OF_DAY.hour, END_OF_DAY.minute, END_OF_DAY.second, END_OF_DAY.microsecond)
@@ -235,7 +245,9 @@ def run_traderbot():
     # spawn thread for each ticker
     threads = []
     for ticker in TICKERS:
-        threads.append(TradingThread(ticker, market_data, market_time, holdings))
+        # using the 50 vs 200 day moving average strategy
+        strategy = LongShortMovingAverage(market_data, ticker, 50, 200)
+        threads.append(TradingThread(ticker, market_data, market_time, holdings, buying_power, strategy, TAKE_PROFIT_PERCENT, MAX_LOSS_PERCENT, PAPER_TRADING))
 
     # busy spin until we decided to start trading
     # block_until_start_trading()
@@ -249,11 +261,11 @@ def run_traderbot():
     for t in threads:
         t.start()
 
-    # # consider having two separate threads update holdings and prices
-    # while market_time.is_time_left_to_trade():
-    #     market_data.update()
-    #     holdings.update()
-    #     market_time.update()
+    # consider having two separate threads update holdings and prices
+    while market_time.is_time_left_to_trade():
+        market_data.update()
+        holdings.update()
+        market_time.update()
 
     # wait for all threads to finish
     for t in threads:

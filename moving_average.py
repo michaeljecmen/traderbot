@@ -12,7 +12,7 @@ class MovingAverage:
     ctor_lock = threading.Lock()
     market_data = {}
 
-    def __init__(self, market_data, ticker, n, span="days"):
+    def __init__(self, market_data, ticker, n, interval='day'):
         with self.ctor_lock:
             MovingAverage.market_data = market_data
 
@@ -21,10 +21,29 @@ class MovingAverage:
         self.current_moving_avg = 0.0
         self.ticker = ticker
 
-        self.sliding_window = r.stocks.get_stock_historicals(ticker, interval='hour', span='week', bounds='regular', info=None)
+        # get data for a year then whittle down
+        data_for_last_n_intervals = r.stocks.get_stock_historicals(ticker, interval=interval, span='year')
+
+        # get the last n intervals from the previous year
+        data_for_last_n_intervals = data_for_last_n_intervals[-n:]
+
+        # data is currently in the following format: 
+        # a list of n dictionaries with the structure:
+        # {     
+        #       'begins_at': '2021-03-05T00:00:00Z',
+        #       'close_price': '3000.460000',
+        #       'high_price': '3009.000000',
+        #       'interpolated': False,
+        #       'low_price': '2881.000100',
+        #       'open_price': '3005.000000',
+        #       'session': 'reg',
+        #       'symbol': 'AMZN',
+        #       'volume': 5388551
+        # }
+        # so we just want the close price to use as our data
+        self.sliding_window = [ float(daily_stats['close_price']) for daily_stats in data_for_last_n_intervals ]
         self.calculate_moving_average()
-        print_with_lock("curr sliding window for {}:".format(ticker), self.sliding_window)
-        print_with_lock("curr moving avg for {}: {}".format(ticker, self.current_moving_avg))
+        print_with_lock("{} {} {} moving avg: {}".format(ticker, n, interval, self.current_moving_avg))
 
         # important -- update the sliding window with the current price at the end
         # this allows us to update the curr moving average once the market opens
@@ -36,6 +55,8 @@ class MovingAverage:
         # as this is likely a duplicate of the previous closing price from yesterday,
         # don't want to overweight this until the day actually starts and 
         # prices actually start moving
+        # TODO if the short MA is already higher than the long MA, we know we aren't going to 
+        # make any trades today, so kill this thread?
 
 
     def calculate_moving_average(self):
@@ -54,6 +75,12 @@ class MovingAverage:
 
     def update(self):
         """Update moving average with current price at end of window."""
+        # constant time solution:
+        # [a b c d e]
+        # avg is (a+b+c+d+e)/n = a/n + b/n + c/n + d/n + e/n
+        # so remove ei/n and add e(i+1)/n to get new MA
+        old_contribution = self.sliding_window[-1]/self.n
+        new_contribution = self.market_data.get_data_for_ticker(ticker)/self.n
+        self.current_moving_avg = self.current_moving_avg - old_contribution + new_contribution
         self.sliding_window[-1] = self.market_data.get_data_for_ticker(ticker)
-        # TODO could be a better way of doing this, find the O(1) soln
-        self.calculate_moving_average()
+

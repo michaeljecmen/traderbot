@@ -15,8 +15,15 @@ class OpenStockPosition:
         self.ticker = ticker
         self.quantity = resp["quantity"]
         self.open_price = resp["price"]
+    
+
+    def get_open_price(self):
+        return self.open_price
+
 
     def close(self):
+        # robin_stocks.robinhood.orders.order_sell_fractional_by_quantity(symbol, quantity, timeInForce='gfd', priceType='bid_price', extendedHours=False, jsonify=True)
+        # then confirm that sell actually worked
         pass # TODO
     
 
@@ -29,6 +36,11 @@ class OpenPaperPosition:
         self.market_data = market_data
         self.ticker = ticker
         self.quantity = budget/self.open_price
+
+
+    def get_open_price(self):
+        return self.open_price
+
 
     def close(self):
         # get price right now to see what we would've sold at

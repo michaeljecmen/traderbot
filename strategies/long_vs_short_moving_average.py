@@ -2,7 +2,6 @@ from strategies.strategy import Strategy
 from market_data import MarketData
 from moving_average import MovingAverage
 
-# TODO put one of these in each tradingthread object
 class LongShortMovingAverage(Strategy):
     """Buy when the short day moving average crosses up the long day 
     moving average for the given ticker."""

@@ -21,7 +21,7 @@ class MarketTime:
             self.time_until_close = self.END_OF_DAY - datetime.now()
         
         # for debugging purposes only
-        self.print_time()
+        # self.print_time()
     
     def is_time_left_to_trade(self):
         # not too shabby python RAII

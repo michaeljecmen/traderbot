@@ -14,5 +14,8 @@
         "GOOG",
         "NFLX"
     ],
-    "paper-trading": true
+    "paper-trading": true,
+    "take-profit-percent": 0.01,
+    "max-loss-percent": 0.01,
+    "spend-percent": 0.20
 }
