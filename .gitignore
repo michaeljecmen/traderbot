@@ -3,3 +3,6 @@ env/
 
 # don't commit the config file, it has sensitive information. change this at your own risk
 config.json
+
+# don't commit the pycache, useless
+*__pycache__*

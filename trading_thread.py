@@ -7,7 +7,7 @@ import robin_stocks.robinhood as r
 from readerwriterlock import rwlock
 
 from position import OpenPaperPosition, OpenStockPosition
-from market_data import MarketData
+from singletons.market_data import MarketData
 from utilities import print_with_lock
 import strategies.long_vs_short_moving_average
 

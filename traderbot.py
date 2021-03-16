@@ -13,10 +13,10 @@ import pyotp
 import yfinance as yf
 
 from trading_thread import TradingThread
-from market_data import MarketData
-from market_time import MarketTime
-from holdings import Holdings
-from buying_power import BuyingPower
+from singletons.market_data import MarketData
+from singletons.market_time import MarketTime
+from singletons.holdings import Holdings
+from singletons.buying_power import BuyingPower
 from strategies.long_vs_short_moving_average import LongShortMovingAverage
 from utilities import print_with_lock
 

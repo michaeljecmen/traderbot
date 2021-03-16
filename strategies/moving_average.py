@@ -2,7 +2,7 @@ import threading
 
 import robin_stocks.robinhood as r
 
-from market_data import MarketData
+from singletons.market_data import MarketData
 from utilities import print_with_lock
 
 class MovingAverage:

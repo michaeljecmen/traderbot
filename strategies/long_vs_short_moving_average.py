@@ -1,6 +1,6 @@
 from strategies.strategy import Strategy
-from market_data import MarketData
-from moving_average import MovingAverage
+from singletons.market_data import MarketData
+from strategies.moving_average import MovingAverage
 
 class LongShortMovingAverage(Strategy):
     """Buy when the short day moving average crosses up the long day 
