@@ -17,6 +17,7 @@ from singletons.market_data import MarketData
 from singletons.market_time import MarketTime
 from singletons.holdings import Holdings
 from singletons.buying_power import BuyingPower
+from singletons.trade_capper import TradeCapper
 from strategies.long_vs_short_moving_average import LongShortMovingAverage
 from utilities import print_with_lock
 
@@ -237,6 +238,7 @@ def run_traderbot():
     market_data = MarketData(TICKERS)
     holdings = Holdings()
     buying_power = BuyingPower(SPEND_PERCENT)
+    trade_capper = TradeCapper(TRADE_LIMIT)
     # now that market open is today, update EOD for time checking
     now = datetime.now()
     END_OF_DAY = datetime(now.year, now.month, now.day, END_OF_DAY.hour, END_OF_DAY.minute, END_OF_DAY.second, END_OF_DAY.microsecond)
@@ -247,7 +249,7 @@ def run_traderbot():
     for ticker in TICKERS:
         # using the 50 vs 200 day moving average strategy
         strategy = LongShortMovingAverage(market_data, ticker, 50, 200)
-        threads.append(TradingThread(ticker, market_data, market_time, holdings, buying_power, strategy, TAKE_PROFIT_PERCENT, MAX_LOSS_PERCENT, PAPER_TRADING))
+        threads.append(TradingThread(ticker, market_data, market_time, holdings, buying_power, trade_capper, strategy, TAKE_PROFIT_PERCENT, MAX_LOSS_PERCENT, PAPER_TRADING))
 
     # busy spin until we decided to start trading
     # block_until_start_trading()

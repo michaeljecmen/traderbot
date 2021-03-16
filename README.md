@@ -31,8 +31,8 @@ don't know how to do that part.
         <code>python3 -m venv env</code>, installing python3 beforehand if necessary
     </li>
     <li>
-        Activate the venv by running:<code>
-        source env/bin/activate</code>
+        Activate the venv by running:
+        <code>source env/bin/activate</code>
         <br>
         (run <code>deactivate</code> or close and reopen the terminal if
         for some reason you want to deactivate the venv)
@@ -89,5 +89,3 @@ TDA has a public api and is more lenient I believe
 
 consider switching to alpaca -- they now support fractional trading and have 
 a much more algorithmic-friendly api
-
-NEED TO LOCK CALLS TO PRINT FOR DEBUGGING, GLOBAL PRINT LOCK

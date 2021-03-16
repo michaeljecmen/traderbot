@@ -8,6 +8,7 @@ from readerwriterlock import rwlock
 
 from position import OpenPaperPosition, OpenStockPosition
 from singletons.market_data import MarketData
+from singletons.trade_capper import TradeCapper
 from utilities import print_with_lock
 import strategies.long_vs_short_moving_average
 
@@ -20,6 +21,7 @@ class TradingThread (threading.Thread):
     market_data = {}
     market_time = {}
     buying_power = {}
+    trade_capper = {}
 
     # classwide constants (after initialization)
     take_profit_percent = 0.01
@@ -28,7 +30,7 @@ class TradingThread (threading.Thread):
 
     # TODO confirm via pythonlvalues that these are actually 1 per class (lock is same for all objects)
 
-    def __init__(self, ticker, market_data, market_time, holdings, buying_power, strategy, take_profit_percent, max_loss_percent, paper_trading=True):
+    def __init__(self, ticker, market_data, market_time, holdings, buying_power, trade_capper, strategy, take_profit_percent, max_loss_percent, paper_trading=True):
         # safety first when setting class variables
         threading.Thread.__init__(self)
         with self.ctor_lock:
@@ -37,6 +39,7 @@ class TradingThread (threading.Thread):
             TradingThread.market_time = market_time
             TradingThread.holdings = holdings
             TradingThread.buying_power = buying_power
+            TradingThread.trade_capper = trade_capper
             TradingThread.take_profit_percent = take_profit_percent
             TradingThread.max_loss_percent = max_loss_percent
             TradingThread.paper_trading = paper_trading
@@ -70,10 +73,14 @@ class TradingThread (threading.Thread):
 
     def open_position(self):
         print_with_lock("opening position for {}".format(self.ticker))
+        if not self.trade_capper.ask_for_trade():
+            # if we don't have enough left to trade today TODO make this a read/write singelton and shut down all looking to buy threads once limit reached
+            return False
         if self.paper_trading:
             self.position = OpenPaperPosition(ticker, self.buying_power.spend_and_get_amount(), self.market_data)
         else:
             self.position = OpenStockPosition(ticker, self.buying_power.spend_and_get_amount(), self.market_data)
+        return True
 
 
     def close_position(self):

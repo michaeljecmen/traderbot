@@ -4,7 +4,7 @@ import sys
 import pyotp
 
 if "--help" in sys.argv or "-h" in sys.argv or len(sys.argv) != 2:
-    print("usage: python3 mfa-setup.py <YOUR_TWO_FACTOR_AUTH_SETUP_CODE_HERE>")
+    print("usage: python3 scripts/mfa-setup.py <YOUR_TWO_FACTOR_AUTH_SETUP_CODE_HERE>")
     print("(take a look at the README for how to get this code)")
     sys.exit(0)
 
