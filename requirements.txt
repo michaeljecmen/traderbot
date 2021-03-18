@@ -4,3 +4,4 @@ pandas_market_calendars==1.6.1
 polygon-api-client==0.1.9
 yfinance==0.1.55
 readerwriterlock==1.0.8
+alpaca_trade_api==1.0.1

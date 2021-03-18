@@ -11,6 +11,8 @@ import pandas as pd
 import pandas_market_calendars as mcal
 import pyotp
 import yfinance as yf
+from alpaca_trade_api.rest import REST
+from alpaca_trade_api.stream import Stream
 
 from trading_thread import TradingThread
 from singletons.market_data import MarketData
@@ -296,8 +298,6 @@ def run_traderbot():
     # bought in and making < 1% hold until loss of 1% or state changes
     # EOD state: close out position soon, or absolute sell if close to market close (within 5 minutes, say)
 
-    # ideas for data: steal data from polygon using free trial then maintain that initial data myself
-
     # how much per trade? come up with a confidence factor in the success of the trade and invest 
     # the buying power $ I have proportionially?
 
@@ -305,7 +305,21 @@ def run_traderbot():
     # https://github.com/SaltyDalty0/Finances/blob/main/quick_stonks.py
     # https://pypi.org/project/yahoo-finance/
 
-
-# TODO test this
+# TODO figure out how to backtest this all on historical data
 if __name__ == "__main__":
-    run_traderbot()
+    # run_traderbot()
+
+    #### yfinance test, kind of slow
+    # count = 0
+    # tickers = [yf.Ticker("MSFT"), yf.Ticker("AAPL"), yf.Ticker("AMZN"), yf.Ticker("GOOG"), yf.Ticker("NFLX")]
+    # while True:
+    #     for ticker in tickers:
+    #         count += 1
+    #         print("REQUEST NUMBER {}:".format(count), ticker.history(period="1m", interval="1m", prepost=True))
+
+
+    ### alpaca test TODO test tomorrow during market hours
+    stream = Stream('AKZOXCA579E32TSIG6OF', 'XJLkPzyzFsjNBpVAbf2RwZVkulTvU9HT5w1Itt0e', data_feed='iex')
+    async def trade_callback(t):
+        print('trade occurred:', t)
+    stream.subscribe_trades(trade_callback, 'AAPL')

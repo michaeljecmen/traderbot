@@ -28,8 +28,6 @@ class TradingThread (threading.Thread):
     max_loss_percent = 0.01
     paper_trading = True
 
-    # TODO confirm via pythonlvalues that these are actually 1 per class (lock is same for all objects)
-
     def __init__(self, ticker, market_data, market_time, holdings, buying_power, trade_capper, strategy, take_profit_percent, max_loss_percent, paper_trading=True):
         # safety first when setting class variables
         threading.Thread.__init__(self)
@@ -48,39 +46,31 @@ class TradingThread (threading.Thread):
         self.position = None
         self.strategy = strategy
 
-        self.currently_holding = self.is_position_open_check()
-        # TODO determine if we have an open position and set a bool
-        # would be a mistake but should be defensive here
-        # also should have a position member, easier than calling RH api each time
-
-
-    def is_position_open_check(self):
-        if self.position is not None:
-            return True
-        return False # TODO read from holdings and compare to None
+        # make sure we do not have an open position. 
+        # if we do, close it immediately
+        
 
 
     def run(self):
-        with self.ctor_lock:
-            print_with_lock("thread {} began".format(self.ticker))
-        # TODO call the correct function based on whether or not we have an open position
+        print_with_lock("thread {} began".format(self.ticker))
+        
         self.looking_to_buy()   
         
-        # if no time left:
-        # robin_stocks.robinhood.orders.cancel_all_stock_orders()
-        # and also sell if open position
+        # did we leave the looking to buy function because we bought in?
+        # or because we ran out of resources? if we ran out, end this thread
+        if self.position is None:
+            return
+        
+        # otherwise, we're now looking to sell
+        self.looking_to_sell()
 
 
     def open_position(self):
         print_with_lock("opening position for {}".format(self.ticker))
-        if not self.trade_capper.ask_for_trade():
-            # if we don't have enough left to trade today TODO make this a read/write singelton and shut down all looking to buy threads once limit reached
-            return False
         if self.paper_trading:
             self.position = OpenPaperPosition(ticker, self.buying_power.spend_and_get_amount(), self.market_data)
         else:
             self.position = OpenStockPosition(ticker, self.buying_power.spend_and_get_amount(), self.market_data)
-        return True
 
 
     def close_position(self):
@@ -89,7 +79,8 @@ class TradingThread (threading.Thread):
 
     
     def looking_to_buy(self):
-        while self.market_time.is_time_left_to_trade() and self.position is None:
+        # if there is no time left or we've made all of our trades or 
+        while self.market_time.is_time_left_to_trade() and self.trade_capper.are_trades_left() and self.position is None:
             if self.strategy.should_buy_on_tick():
                 self.open_position()
     
