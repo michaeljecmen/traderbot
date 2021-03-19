@@ -1,17 +1,17 @@
 {
-    "username": "johndoe@example.com",
-    "password": "abc123",
+    "username": "youremail@provider.com",
+    "password": "your password",
     "max-trades-per-day": 300,
-    "mfa-setup-code": "REMOVE THIS FIELD IF YOU DO NOT HAVE 2FA ENABLED ON YOUR RH ACCOUNT",
+    "mfa-setup-code": "your mfa code, if any. remove this field if no MFA set up for RH. otherwise see readme",
+    "alpaca-api-key": "your alpaca api key",
+    "alpaca-secret-key": "your alpaca api secret key",
     "time-zone-pandas-market-calendars": "EST",
-    "start-of-day": "9:30",
+    "start-of-day": "09:30",
     "end-of-day": "16:00",
     "tickers": [
         "AMZN",
-        "AAPL",
-        "FB",
         "GOOG",
-        "NFLX"
+        "AAPL"
     ],
     "paper-trading": true,
     "take-profit-percent": 0.01,

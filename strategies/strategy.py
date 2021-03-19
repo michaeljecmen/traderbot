@@ -1,6 +1,6 @@
 
 class Strategy:
-    """Base class for trading strategies that the bot uses.
+    """Interface class for trading strategies that the bot uses.
     
     Defines the interface for current and future strategy impls."""
     def __init__(self):

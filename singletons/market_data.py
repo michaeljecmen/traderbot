@@ -49,8 +49,12 @@ class MarketData:
         # only start stream when the market is open
 
     def start_stream(self):
-        """Call this function when the market is open."""
-        self.stream.run()
+        """Call this function when the market is open.
+        
+        Starts a daemon thread which consumes new ticker updates
+        from the Alpaca stream and updates the relevant data in this object."""
+        self.stream_thread = threading.Thread(target=self.stream.run, daemon=True)
+        self.stream_thread.start()
 
     def get_data_for_ticker(self, ticker):
         # can be called by any thread

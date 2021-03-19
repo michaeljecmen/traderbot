@@ -1,6 +1,7 @@
 from strategies.strategy import Strategy
 from singletons.market_data import MarketData
 from strategies.moving_average import MovingAverage
+import utilities
 
 class LongShortMovingAverage(Strategy):
     """Buy when the short day moving average crosses up the long day 
@@ -22,5 +23,6 @@ class LongShortMovingAverage(Strategy):
         # otherwise update both and buy if we now have a higher short than long MA
         self.short_moving_avg.update()
         self.long_moving_avg.update()
+        print_with_lock("MA for {}: short={} long={}".format(ticker, self.short_moving_avg.get_moving_average(), self.long_moving_avg.get_moving_average()))
         return self.short_moving_avg.get_moving_average() > self.long_moving_avg.get_moving_average()
 

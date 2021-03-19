@@ -45,6 +45,19 @@ don't know how to do that part.
     <li>
         Create a file <code>config.json</code>, copy and paste the contents from <code>example.json</code>, and fill in all fields. Note: the <code>mfa-setup-code</code> field is optional, leave it blank or remove it if you don't have multi-factor authentication enabled on your Robinhood account.<br><br>To get this code, navigate <a href="https://robinhood.com/account/settings">here</a>, then, from the <b>Security</b> tab find the dropdown for <b>Two-Factor Authentication</b>. If you already have 2FA enabled, disable and re-enable it. Select <b>Authentication App</b>, then click <b>Can't scan it?</b> at the bottom of the page, under the QR code. An alphanumeric code should appear. Copy it, put the following line in your <code>config.json</code> file: <code>"mfa-setup-code": "&lt;YOUR_CODE&gt;"</code>, then run the following command with it: <code>python3 scripts/mfa-setup.py &lt;YOUR_CODE&gt;</code>. The script will respond with the 6 digit code that RH will prompt for. Just run the script again if another code is prompted for or if the first one is rejected, as the time-cycles for these codes are pretty short. The bot will now log in using MFA, provided you updated <code>config.json</code> with the setup code as described earlier this step.
     </li>
+    <li>
+        Put the following lines in env/lib/alpaca_trade_api/stream.py in the outermost run() function:
+        Replace ```loop = asyncio.get_event_loop()``` with
+        ```
+        # ADDED BY MJJECMEN 03/19/21, create new loop if no loop found
+        try:
+            loop = asyncio.get_event_loop()
+        except:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        ```
+
+    </li>
 </ol>
 
 ## Usage
@@ -89,3 +102,6 @@ TDA has a public api and is more lenient I believe
 
 consider switching to alpaca -- they now support fractional trading and have 
 a much more algorithmic-friendly api
+
+change back to alpaca_trade_api==1.0.1 if you have problems with asyncio event loop again
+otherwise download new package version and run it

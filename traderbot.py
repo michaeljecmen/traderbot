@@ -10,6 +10,7 @@ import robin_stocks.robinhood as r
 import pandas as pd
 import pandas_market_calendars as mcal
 import pyotp
+from alpaca_trade_api.stream import Stream
 import yfinance as yf
 
 from trading_thread import TradingThread
@@ -263,7 +264,7 @@ def run_traderbot():
 
     # update before we start threads to avoid mass panic
     market_data.start_stream()
-    holdings.update()
+    # holdings.update()
     market_time.update()
 
     # start all threads
@@ -271,9 +272,13 @@ def run_traderbot():
         t.start()
 
     # consider having two separate threads update holdings and prices
+    i = 0
     while market_time.is_time_left_to_trade():
-        holdings.update()
+        # holdings.update()
         market_time.update()
+        if i % 500000 == 0: # TODO remove after debugging complete
+            market_data.print_data()
+        i += 1
 
     # wait for all threads to finish
     for t in threads:
@@ -304,6 +309,27 @@ def run_traderbot():
 if __name__ == "__main__":
     run_traderbot()
 
+    ### alpaca test, worked well, implementing
+    # stream = Stream('AKEK257SVC1NSFDCSTMF', 'uGhNF4IFJ60qAnf4ODp8DAxcr2fe50FDLG8H0qwJ', data_feed='iex')
+    # async def trade_callback(t):
+    #     print("trade made:", t.symbol, t.price)
+    # async def amzn_callback(t):
+    #     print("AMZN TRADE MADE:", t.symbol, t.price)
+    # async def aapl_callback(t):
+    #     print("AAPL TRADE MADE:", t.symbol, t.price)
+    # async def goog_callback(t):
+    #     print("GOOG TRADE MADE:", t.symbol, t.price)
+    # callbacks = []
+    # callbacks.append(aapl_callback)
+    # callbacks.append(amzn_callback)
+    # callbacks.append(goog_callback)
+    # tickers = ["AAPL", "AMZN", "GOOG"]
+    # for i in range(len(tickers)):
+    #     stream.subscribe_trades(callbacks[i], tickers[i])
+    # stream.run()
+    # while True:
+    #     pass
+
     #### yfinance test, kind of slow
     # count = 0
     # tickers = [yf.Ticker("MSFT"), yf.Ticker("AAPL"), yf.Ticker("AMZN"), yf.Ticker("GOOG"), yf.Ticker("NFLX")]
@@ -312,4 +338,3 @@ if __name__ == "__main__":
     #         count += 1
     #         print("REQUEST NUMBER {}:".format(count), ticker.history(period="1m", interval="1m", prepost=True))
     
-    ### alpaca test, worked well, implementing
