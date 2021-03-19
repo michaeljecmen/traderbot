@@ -11,8 +11,6 @@ import pandas as pd
 import pandas_market_calendars as mcal
 import pyotp
 import yfinance as yf
-from alpaca_trade_api.rest import REST
-from alpaca_trade_api.stream import Stream
 
 from trading_thread import TradingThread
 from singletons.market_data import MarketData
@@ -189,9 +187,12 @@ def get_json_dict():
         max_loss = data.get("max-loss-percent", "_")
         take_profit = data.get("take-profit-percent", "_") # TODO in the future allow this to be per-ticker
         spend_percent = data.get("spend-percent", "_")
-        if usr == "_" or pw == "_" or tickers == "_" or pt == "_" or max_loss == '_' or take_profit == '_' or spend_percent == '_':
+        alpaca_key = data.get("alpaca-api-key", "_")
+        alpaca_secret_key = data.get("alpaca-secret-key", "_")
+        if usr == "_" or pw == "_" or tickers == "_" or pt == "_" or max_loss == '_' or take_profit == '_' or spend_percent == '_' or alpaca_key == '_' or alpaca_secret_key == '_':
             print_with_lock("\"username\", \"password\", \"tickers\", \"paper-trading\", \"max-loss-percent\", "
-             "\"take-profit-percent\", and \"spend-percent\" must be defined in config.json -- see example.json for how to do this")
+             "\"take-profit-percent\", \"spend-percent\", \"alpaca-api-key\", and \"alpaca-secret-key\" must "
+             "be defined in config.json -- see example.json for how to do this")
             sys.exit(1)
         # TODO enforce that all tickers are all real & tradeable
         return data
@@ -225,6 +226,8 @@ def run_traderbot():
     START_OF_DAY = datetime.strptime(full_start_time_str, "%H:%M=%Z").time()
     END_OF_DAY = datetime.strptime(full_end_time_str, "%H:%M=%Z").time()
     TRADE_LIMIT = CONFIG.get("max-trades-per-day", None)
+    ALPACA_KEY = CONFIG["alpaca-api-key"]
+    ALPACA_SECRET_KEY = CONFIG["alpaca-secret-key"]
     zero_time = timedelta()
 
     login = log_in_to_robinhood()
@@ -233,14 +236,15 @@ def run_traderbot():
     START_OF_DAY, END_OF_DAY, TRADE_LIMIT = generate_humanlike_parameters()
 
     # busy-spin until market open
-    #block_until_market_open()
+    # block_until_market_open() #TODO uncomment
 
     # these variables are shared by each trading thread. they are written by this
     # main traderbot thread, and read by each trading thread individually
-    market_data = MarketData(TICKERS)
+    market_data = MarketData(TICKERS, ALPACA_KEY, ALPACA_SECRET_KEY)
     holdings = Holdings()
     buying_power = BuyingPower(SPEND_PERCENT)
     trade_capper = TradeCapper(TRADE_LIMIT)
+
     # now that market open is today, update EOD for time checking
     now = datetime.now()
     END_OF_DAY = datetime(now.year, now.month, now.day, END_OF_DAY.hour, END_OF_DAY.minute, END_OF_DAY.second, END_OF_DAY.microsecond)
@@ -253,11 +257,12 @@ def run_traderbot():
         strategy = LongShortMovingAverage(market_data, ticker, 50, 200)
         threads.append(TradingThread(ticker, market_data, market_time, holdings, buying_power, trade_capper, strategy, TAKE_PROFIT_PERCENT, MAX_LOSS_PERCENT, PAPER_TRADING))
 
+    # after all threads have subscribed the 
     # busy spin until we decided to start trading
-    # block_until_start_trading()
+    # block_until_start_trading() #TODO uncomment
 
     # update before we start threads to avoid mass panic
-    market_data.update()
+    market_data.start_stream()
     holdings.update()
     market_time.update()
 
@@ -267,7 +272,6 @@ def run_traderbot():
 
     # consider having two separate threads update holdings and prices
     while market_time.is_time_left_to_trade():
-        market_data.update()
         holdings.update()
         market_time.update()
 
@@ -278,15 +282,6 @@ def run_traderbot():
     # tidy up after ourselves
     r.logout()
     print_with_lock("logged out user {}".format(USERNAME))
-
-    # general idea: 
-    #   market buy when short moving avg crosses up the long moving avg
-    #   per-thread: market sell when profit of 1% or loss of 1%
-    #   spawn thread for each open position that handles the opening and closing
-    # for s in config["tickers"]:
-    #     print_with_lock(s)
-    #     share = yf.Ticker(s)
-    #     print_with_lock(share.history(period="max"))
 
     # TODO login expires after a day, so expect that the user runs the script once 
     # per day (probably best after hours) and if any login trouble handle it on your own
@@ -307,7 +302,7 @@ def run_traderbot():
 
 # TODO figure out how to backtest this all on historical data
 if __name__ == "__main__":
-    # run_traderbot()
+    run_traderbot()
 
     #### yfinance test, kind of slow
     # count = 0
@@ -316,10 +311,5 @@ if __name__ == "__main__":
     #     for ticker in tickers:
     #         count += 1
     #         print("REQUEST NUMBER {}:".format(count), ticker.history(period="1m", interval="1m", prepost=True))
-
-
-    ### alpaca test TODO test tomorrow during market hours
-    stream = Stream('AKZOXCA579E32TSIG6OF', 'XJLkPzyzFsjNBpVAbf2RwZVkulTvU9HT5w1Itt0e', data_feed='iex')
-    async def trade_callback(t):
-        print('trade occurred:', t)
-    stream.subscribe_trades(trade_callback, 'AAPL')
+    
+    ### alpaca test, worked well, implementing
