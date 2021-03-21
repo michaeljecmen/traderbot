@@ -14,10 +14,12 @@ class TickerData:
         self.lock = rwlock.RWLockWrite()
         self.price = curr_price
 
+
     async def trade_update_callback(self, t):
         with self.lock.gen_wlock():
             self.price = t.price
         
+
     def get_price(self):
         with self.lock.gen_rlock():
             return self.price
@@ -48,6 +50,7 @@ class MarketData:
 
         # only start stream when the market is open
 
+
     def start_stream(self):
         """Call this function when the market is open.
         
@@ -55,6 +58,7 @@ class MarketData:
         from the Alpaca stream and updates the relevant data in this object."""
         self.stream_thread = threading.Thread(target=self.stream.run, daemon=True)
         self.stream_thread.start()
+
 
     def get_data_for_ticker(self, ticker):
         # can be called by any thread
@@ -68,3 +72,4 @@ class MarketData:
             print_with_lock("{}: {}".format(ticker, self.data[index].get_price()))
         print_with_lock("---------------------")
 
+# TODO track the last like N prices so we can track a very short term trend

@@ -5,7 +5,9 @@ import sys
 from datetime import datetime, date, timedelta
 from random import randrange
 import threading
+import re
 
+import requests
 import robin_stocks.robinhood as r
 import pandas as pd
 import pandas_market_calendars as mcal
@@ -308,6 +310,26 @@ def run_traderbot():
 # TODO figure out how to backtest this all on historical data
 if __name__ == "__main__":
     run_traderbot()
+
+    ### socialsentiment test, worked well, implementing as strategy
+    # 25 api requests per day with basic account
+    # steal trending stocks from home page without paying for premium subscription
+    # just regex the html lol
+    # r = requests.get(url='https://socialsentiment.io/stocks/')
+    # content = str(r.content)
+    # m = re.findall('/stocks/symbol/[A-Z]*/', content)
+    # m = [ url.split("/")[-2] for url in m ]
+    # m = list(set(m))
+    # print("today's trending stocks:", m)
+
+    # BASE_URL = 'https://socialsentiment.io/api/v1/'
+    # API_KEY = 'YOUR_API_KEY'
+    # headers = {
+    #     "Authorization" : "Token {}".format(API_KEY)
+    # }
+    # for ticker in m:
+    #     r = requests.get(url=BASE_URL+'stocks/{}/sentiment/daily/'.format(ticker), headers=headers)
+    #     print(r.json())
 
     ### alpaca test, worked well, implementing
     # stream = Stream('AKEK257SVC1NSFDCSTMF', 'uGhNF4IFJ60qAnf4ODp8DAxcr2fe50FDLG8H0qwJ', data_feed='iex')

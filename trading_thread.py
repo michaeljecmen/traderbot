@@ -50,7 +50,6 @@ class TradingThread (threading.Thread):
         # if we do, close it immediately
         
 
-
     def run(self):
         print_with_lock("thread {} began".format(self.ticker))
         
