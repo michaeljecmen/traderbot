@@ -3,11 +3,14 @@ on a given day. """
 
 import requests
 import re
+import threading
 
-import strategies.strategy
+from strategies.strategy import Strategy
+from strategies.basic_trend_follower import BasicTrendFollower
 from utilities import print_with_lock
 
 def get_socially_trending_tickers():
+    """Returns a list of the 10 most socially trending tickers."""
     # steal trending stocks from home page without paying for premium subscription
     # just regex the html lol
     r = requests.get(url='https://socialsentiment.io/stocks/')
@@ -23,11 +26,16 @@ def get_socially_trending_tickers():
     print_with_lock("today's socially trending stocks:", trending)
     return trending
 
-class SocialSentiment(Strategy): # TODO because strategies are per-thread, make this just for one ticker
-    def __init__(self, ticker, api_key):
-        super().__init__()
-        # assume that ticker is a trending stock, trust that it came from 
 
+class SocialSentiment(Strategy):
+    market_data = {}
+    ctor_lock = threading.Lock()
+    def __init__(self, ticker, api_key, market_data):
+        super().__init__()
+        # assume that ticker is a trending stock, trust that it came from the above function
+        with self.ctor_lock:
+            SocialSentiment.market_data = market_data
+        
         # 25 api requests per day with basic account
         BASE_URL = 'https://socialsentiment.io/api/v1/'
         headers = {
@@ -35,9 +43,8 @@ class SocialSentiment(Strategy): # TODO because strategies are per-thread, make 
         }
         r = requests.get(url=BASE_URL+'stocks/{}/sentiment/daily/'.format(ticker), headers=headers)
         self.last_week_of_scores = r.json()
+        self.trend_follower = BasicTrendFollower(market_data, ticker, 1)
 
     
     def should_buy_on_tick(self):
-        # TODO rely on general uptrend here, we already know it's trending
-        
-        pass
+        return self.trend_follower.should_buy_on_tick()

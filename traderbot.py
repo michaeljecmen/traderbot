@@ -16,13 +16,14 @@ from alpaca_trade_api.stream import Stream
 import yfinance as yf
 
 from trading_thread import TradingThread
-from singletons.market_data import MarketData
+from singletons.market_data import MarketData, TickerData
 from singletons.market_time import MarketTime
 from singletons.holdings import Holdings
 from singletons.buying_power import BuyingPower
 from singletons.trade_capper import TradeCapper
 from strategies.long_vs_short_moving_average import LongShortMovingAverage
-from utilities import print_with_lock
+from strategies.social_sentiment import SocialSentiment
+from utilities import print_with_lock, get_mean_stddev
 
 # all filescope constants will be configured in the config.json
 CONFIG_FILENAME = "config.json"
@@ -231,6 +232,7 @@ def run_traderbot():
     TRADE_LIMIT = CONFIG.get("max-trades-per-day", None)
     ALPACA_KEY = CONFIG["alpaca-api-key"]
     ALPACA_SECRET_KEY = CONFIG["alpaca-secret-key"]
+    SOCIAL_SENTIMENT_KEY = CONFIG.get("social-sentiment-key", None)
     zero_time = timedelta()
 
     login = log_in_to_robinhood()
@@ -243,7 +245,7 @@ def run_traderbot():
 
     # these variables are shared by each trading thread. they are written by this
     # main traderbot thread, and read by each trading thread individually
-    market_data = MarketData(TICKERS, ALPACA_KEY, ALPACA_SECRET_KEY)
+    market_data = MarketData(TICKERS, ALPACA_KEY, ALPACA_SECRET_KEY, 16)
     holdings = Holdings()
     buying_power = BuyingPower(SPEND_PERCENT)
     trade_capper = TradeCapper(TRADE_LIMIT)
@@ -257,7 +259,8 @@ def run_traderbot():
     threads = []
     for ticker in TICKERS:
         # using the 50 vs 200 day moving average strategy
-        strategy = LongShortMovingAverage(market_data, ticker, 50, 200)
+        # strategy = LongShortMovingAverage(market_data, ticker, 50, 200)
+        strategy = SocialSentiment(ticker, SOCIAL_SENTIMENT_KEY, market_data)
         threads.append(TradingThread(ticker, market_data, market_time, holdings, buying_power, trade_capper, strategy, TAKE_PROFIT_PERCENT, MAX_LOSS_PERCENT, PAPER_TRADING))
 
     # after all threads have subscribed the 
