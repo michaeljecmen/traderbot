@@ -1,11 +1,11 @@
 # Robinhood Traderbot
-The goal of this project is to make a semi-configurable 
+The goal of this project is to make a <b>free</b>, highly-configurable 
 bot to trade a set of user-defined stocks on a robinhood 
 account. Ideally I also hook it up to a raspberry pi or
 throw some visuals on a web server or something as it's
 supposed to be a birthday present for a friend, and I'd 
 like to actually give him something tangible instead of
-an idea.
+some software or a python package.
 
 You should be able to throw like 50$ in there, select
 a set of stocks for the bot to trade from, and watch the
@@ -19,6 +19,8 @@ Why Robinhood? Well, they offer fractional trading, which is pretty necessary
 if you don't have a lot of money and want to do rapid trading.
 And, of course, zero commission fees. This is not an endorsement of Robinhood,
 which is objectively a shitty company.
+
+Since I first broke ground on this project Alpaca and TD Ameritrade have also started offering fractional trading via their APIs, so if there's desire for that or I get bored I could port this to either of those platforms.
 
 ## Installation Process
 The following tutorial assumes you have access to a linux terminal with python3 installed. Look up how to do that or talk to me in real life if you
@@ -96,9 +98,9 @@ except:
 </ol>
 
 ## Usage
-TODO
+TODO talk about configuring the strategy
 
-## Configurations
+## Other Configurations
 Change these fields in the <code>config.json</code> configuration file at your own risk.
 
 ### max-trades-per-day
