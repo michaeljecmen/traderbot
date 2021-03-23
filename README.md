@@ -25,45 +25,74 @@ The following tutorial assumes you have access to a linux terminal with python3 
 don't know how to do that part.
 
 <ol>
-	<li>Clone this repo with <code>git clone </code></li>
-    <li>
-        Initialize a python virtual environment in your local repo with:
-        <code>python3 -m venv env</code>, installing python3 beforehand if necessary
-    </li>
-    <li>
-        Activate the venv by running:
-        <code>source env/bin/activate</code>
-        <br>
-        (run <code>deactivate</code> or close and reopen the terminal if
-        for some reason you want to deactivate the venv)
-    </li>
-    <li>
-        Run <code>pip install -r requirements.txt</code>
-        to install the necessary dependencies and ensure
-        we're working with the same versions of packages
-    </li>
-    <li>
-        Create a file <code>config.json</code>, copy and paste the contents from <code>example.json</code>, and fill in all fields. Note: the <code>mfa-setup-code</code> field is optional, leave it blank or remove it if you don't have multi-factor authentication enabled on your Robinhood account.<br><br>To get this code, navigate <a href="https://robinhood.com/account/settings">here</a>, then, from the <b>Security</b> tab find the dropdown for <b>Two-Factor Authentication</b>. If you already have 2FA enabled, disable and re-enable it. Select <b>Authentication App</b>, then click <b>Can't scan it?</b> at the bottom of the page, under the QR code. An alphanumeric code should appear. Copy it, put the following line in your <code>config.json</code> file: <code>"mfa-setup-code": "&lt;YOUR_CODE&gt;"</code>, then run the following command with it: <code>python3 scripts/mfa-setup.py &lt;YOUR_CODE&gt;</code>. The script will respond with the 6 digit code that RH will prompt for. Just run the script again if another code is prompted for or if the first one is rejected, as the time-cycles for these codes are pretty short. The bot will now log in using MFA, provided you updated <code>config.json</code> with the setup code as described earlier this step.
+	<li>Clone this repo with 
+
+```
+git clone git@github.com:michaeljecmen/traderbot.git
+```
+
+</li>
+<li>
+    Initialize a python virtual environment in your local repo with:
+
+```
+python3 -m venv env
+```
+
+... installing python3 beforehand if necessary.
+</li>
+<li>
+Activate the venv by running:
+        
+```
+source env/bin/activate
+```
+
+(run <code>deactivate</code> or close and reopen the terminal if
+for some reason you want to deactivate the venv)
+</li>
+<li>
+    Run 
+
+```
+pip install -r requirements.txt
+```
+to install the necessary dependencies and ensure
+we're working with the same versions of packages.
+</li>
+<li>
+    Create a file <code>config.json</code>, copy and paste the contents from <code>example.json</code>, and fill in all fields. Note: the <code>mfa-setup-code</code> field is optional, leave it blank or remove it if you don't have multi-factor authentication enabled on your Robinhood account.<br><br>To get this code, navigate <a href="https://robinhood.com/account/settings">here</a>, then, from the <b>Security</b> tab find the dropdown for <b>Two-Factor Authentication</b>. If you already have 2FA enabled, disable and re-enable it. Select <b>Authentication App</b>, then click <b>Can't scan it?</b> at the bottom of the page, under the QR code. An alphanumeric code should appear. Copy it, put the following line in your <code>config.json</code> file:
+
+```json
+"mfa-setup-code": "<YOUR_CODE>"
+```
+
+then run the following command with it:
+
+```python
+python3 scripts/mfa-setup.py <YOUR_CODE>
+```
+
+The script will respond with the 6 digit code that RH will prompt for. Just run the script again if another code is prompted for or if the first one is rejected, as the time-cycles for these codes are pretty short. The bot will now log in using MFA, provided you updated <code>config.json</code> with the setup code as described earlier this step.
     </li>
     <li>
         Put the following lines in env/lib/alpaca_trade_api/stream.py in the outermost run() function: Replace
-        
-        ```python
-        loop = asyncio.get_event_loop()
-        ```
 
-        with
-        
-        ```python
-        # ADDED BY MJJECMEN 03/19/21, create new loop if no loop found
-        try:
-            loop = asyncio.get_event_loop()
-        except:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-        ```
+```python
+loop = asyncio.get_event_loop()
+```
 
-    </li>
+with
+    
+```python
+try:
+    loop = asyncio.get_event_loop()
+except:
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+```
+
+</li>
 </ol>
 
 ## Usage
