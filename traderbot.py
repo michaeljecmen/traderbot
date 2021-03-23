@@ -21,9 +21,9 @@ from singletons.market_time import MarketTime
 from singletons.holdings import Holdings
 from singletons.buying_power import BuyingPower
 from singletons.trade_capper import TradeCapper
+from strategies.basic_trend_follower import BasicTrendFollower
 from strategies.long_vs_short_moving_average import LongShortMovingAverage
-from strategies.social_sentiment import SocialSentiment
-from utilities import print_with_lock, get_mean_stddev
+from utilities import print_with_lock, get_trending_socially_positive_tickers
 
 # all filescope constants will be configured in the config.json
 CONFIG_FILENAME = "config.json"
@@ -259,11 +259,17 @@ def run_traderbot():
     threads = []
     for ticker in TICKERS:
         # using the 50 vs 200 day moving average strategy
-        # strategy = LongShortMovingAverage(market_data, ticker, 50, 200)
-        strategy = SocialSentiment(ticker, SOCIAL_SENTIMENT_KEY, market_data)
+        strategy = LongShortMovingAverage(market_data, ticker, 50, 200)
+        if not strategy.is_relevant():
+            # don't add irrelevant tickers to the threadpool. long term TODO figure out how to remove this from TICKERS (including market data and all strategies that rely on it)
+            continue
         threads.append(TradingThread(ticker, market_data, market_time, holdings, buying_power, trade_capper, strategy, TAKE_PROFIT_PERCENT, MAX_LOSS_PERCENT, PAPER_TRADING))
 
-    # after all threads have subscribed the 
+    for ticker in get_trending_socially_positive_tickers(SOCIAL_SENTIMENT_KEY):
+        # using the social sentiment strategy
+        strategy = BasicTrendFollower(market_data, ticker, 1) # TODO make a strategy factory that takes in the config, make the strategy configurable from the config via a "strategy": {} member
+        threads.append(TradingThread(ticker, market_data, market_time, holdings, buying_power, trade_capper, strategy, TAKE_PROFIT_PERCENT, MAX_LOSS_PERCENT, PAPER_TRADING))
+     
     # busy spin until we decided to start trading
     # block_until_start_trading() #TODO uncomment
 
@@ -281,7 +287,7 @@ def run_traderbot():
     while market_time.is_time_left_to_trade():
         # holdings.update()
         market_time.update()
-        if i % 500000 == 0: # TODO remove after debugging complete
+        if i % 5000 == 0: # TODO remove after debugging complete, add a logging object
             market_data.print_data()
         i += 1
 

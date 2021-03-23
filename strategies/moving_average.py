@@ -55,8 +55,6 @@ class MovingAverage:
         # as this is likely a duplicate of the previous closing price from yesterday,
         # don't want to overweight this until the day actually starts and 
         # prices actually start moving
-        # TODO if the short MA is already higher than the long MA, we know we aren't going to 
-        # make any trades today, so kill this thread?
 
 
     def calculate_moving_average(self):

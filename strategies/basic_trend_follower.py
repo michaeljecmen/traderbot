@@ -5,7 +5,7 @@ which would mean that the price has moved significantly more violently than
 
 import threading
 
-import strategies.strategy
+from strategies.strategy import Strategy
 
 class BasicTrendFollower(Strategy):
     market_data = {}

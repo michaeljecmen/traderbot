@@ -11,6 +11,15 @@ class LongShortMovingAverage(Strategy):
         super().__init__()
         self.short_moving_avg = MovingAverage(market_data, ticker, short)
         self.long_moving_avg = MovingAverage(market_data, ticker, long)
+        self.relevant = True
+
+        # if short already crossed up long, cancel this thread
+        if self.short_moving_avg.get_moving_average() > self.long_moving_avg.get_moving_average():
+            self.relevant = False
+    
+
+    def is_relevant(self):
+        return self.relevant
 
 
     def should_buy_on_tick(self):

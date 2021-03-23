@@ -77,7 +77,7 @@ class TradingThread (threading.Thread):
         self.position = None
 
     
-    def looking_to_buy(self):
+    def looking_to_buy(self): # TODO allow buy and sell mult times/day
         # if there is no time left or we've made all of our trades or we already have a position
         while self.market_time.is_time_left_to_trade() and self.trade_capper.are_trades_left() and self.position is None:
             if self.strategy.should_buy_on_tick():

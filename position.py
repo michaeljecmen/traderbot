@@ -32,10 +32,11 @@ class OpenPaperPosition:
     def __init__(self, ticker, budget, market_data):
         # open the position given the allocated budget
         # instead of buying here, just get current price and assume that's what we bought at
-        self.open_price = market_data.get_data_for_ticker(ticker)
+        self.open_price = market_data.get_next_data_for_ticker(self.ticker)
         self.market_data = market_data
         self.ticker = ticker
         self.quantity = budget/self.open_price
+        print_with_lock("opened {} position: {} shares at {}".format(self.ticker, self.quanity, self.open_price))
 
 
     def get_open_price(self):
@@ -44,7 +45,7 @@ class OpenPaperPosition:
 
     def close(self):
         # get price right now to see what we would've sold at
-        close_price = self.market_data.get_data_for_ticker(self.ticker)
+        close_price = self.market_data.get_next_data_for_ticker(self.ticker)
 
         print_with_lock("sold {} shares of {} for a net {} of {}".format(
             self.quantity, self.ticker, "gain" if close_price > self.open_price else "loss", close_price-self.open_price))

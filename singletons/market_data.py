@@ -11,53 +11,99 @@ class TickerData:
     locks the reading and writing of it. Data is an array of the last
     N prices of the stock."""
 
-    def __init__(self, curr_price, n):
+    def __init__(self, curr_price, n, k=3):
         """n MUST be a power of 2 >= 8 for the circular buffer to work, which is crucial
         for this class' operations to be O(1)"""
+        assert(k >= 2 and k <= n) # k must be at least 2
         self.lock = rwlock.RWLockWrite()
-        self.prices = [curr_price]
+        self.prices = [float(curr_price)]
         self.n = n
+        self.k = k
         self.mask = n-1 # 0b01111 if n is 16
         self.ind = 0
+        self.has_price_update_occurred = False
 
 
-    def trade_update_callback(self, t):
+    async def trade_update_callback(self, t):
         with self.lock.gen_wlock():
             if len(self.prices) == self.n:
                 # circular buffer with bitmasking
-                self.prices[self.ind & self.mask] = t.price
+                if self.ind == self.n:
+                    self.ind = 0
+                self.prices[self.ind & self.mask] = float(t.price)
                 self.ind += 1
             else:
-                self.prices.append(t.price)
+                self.prices.append(float(t.price))
+                self.ind += 1
+            self.has_price_update_occurred = True
         
 
     def get_price(self):
         with self.lock.gen_rlock():
-            return self.price
+            return self.prices[self.ind-1]
         
     
+    def get_next_price(self):
+        """Blocks until the next price comes in from the callback."""
+        with self.lock.gen_wlock():
+            self.has_price_update_occurred = False
+        
+        # now block until it switches back
+        # not using cvs here because we only use
+        # this function for paper trading and id rather not
+        # stuff up the callback function just for that
+        lock = self.lock.gen_rlock()
+        lock.acquire()
+        while not self.has_price_update_occurred:
+            lock.release()
+            lock.acquire()
+        
+        # now return recent price
+        lock.release()
+        return self.get_price()
+
+
+    def get_last_k_prices_in_order(self):
+        """This function assumes you have the rlock already."""
+        # first get the indices (will add n to the negative ones later)
+        last_k_in_order = []
+        i = self.ind-1
+        for _ in range(self.k):
+            last_k_in_order.append(i)
+            i -= 1
+
+        return list(map((lambda x: self.prices[x] if x in range(len(self.prices)) else self.prices[x+len(self.prices)]), last_k_in_order))
+    
+
     def get_trend(self):
-        """Return mean, stddev, and whether or not the last three trades went up in price."""
+        """Return mean, stddev, and whether or not the last K trades went up in price."""
         with self.lock.gen_rlock():
             mean, stddev = get_mean_stddev(self.prices)
-            first = self.ind-1
-            if first < 0:
-                first = self.n-1
-            second = first-1
-            if second < 0: 
-                second = self.n-1
-            third = second-1
-            if third < 0:
-                third = self.n-1
-            
-            # if all three went up from prev, good sign
-            # if all three went down, bad sign
+
+            # if less than 3 prices, return none
+            if len(self.prices) < self.k:
+                return mean, stddev, "none"
+            last_k_in_order = self.get_last_k_prices_in_order()
+
+            # if all k went up from prev, good sign
+            # if all k went down, bad sign
             # if inconclusive, neutral
-            if self.prices[first] > self.prices[second] and self.prices[second] > self.prices[third]:
-                return mean, stddev, "up"
-            if self.prices[first] < self.prices[second] and self.prices[second] < self.prices[third]:
-                return mean, stddev, "down"
-            return mean, stddev, "none"
+
+            # legal because k must be >= 2
+            up = last_k_in_order[0] > last_k_in_order[1]
+            prev = last_k_in_order[1]
+            for i in range(1, len(last_k_in_order)):
+                if up:
+                    if last_k_in_order[i] <= prev:
+                        return mean, stddev, "none"
+                    prev = last_k_in_order[i]
+                else:
+                    if last_k_in_order[i] >= prev:
+                        return mean, stddev, "none"
+                    prev = last_k_in_order[i]
+            
+            # otherwise all k passed the trend
+            return mean, stddev, "up" if up else "down"
 
 
     def print(self):
@@ -84,7 +130,7 @@ class MarketData:
             # - most recent price
             # - rwlock
             # - callback function for stream that updates most recent price
-            ticker_data = TickerData(initial_data[self.tickers_to_indices[ticker]])
+            ticker_data = TickerData(initial_data[self.tickers_to_indices[ticker]], n)
             self.stream.subscribe_trades(ticker_data.trade_update_callback, ticker)
             self.data.append(ticker_data)
 
@@ -103,7 +149,11 @@ class MarketData:
     def get_data_for_ticker(self, ticker):
         # can be called by any thread
         return self.data[self.tickers_to_indices[ticker]].get_price()
-        
+    
+
+    def get_next_data_for_ticker(self, ticker):
+        return self.data[self.tickers_to_indices[ticker]].get_next_price()
+
 
     def get_trend_for_ticker(self, ticker):
         return self.data[self.tickers_to_indices[ticker]].get_trend()
@@ -113,5 +163,12 @@ class MarketData:
         """Pretty printing for the internal data of this object."""
         print_with_lock("---- MARKET DATA ----")
         for ticker, index in self.tickers_to_indices.items():
-            print_with_lock("{}: {}".format(ticker, self.data[index].get_price()))
+            ticker_data = self.data[index]
+            with ticker_data.lock.gen_rlock():
+                if len(ticker_data.prices) < ticker_data.k:
+                    # make a reversed copy of the list
+                    data_snippet = ticker_data.prices[::-1]
+                else:
+                    data_snippet = ticker_data.get_last_k_prices_in_order()
+                print_with_lock("{}: {} {}".format(ticker, data_snippet[0], data_snippet))
         print_with_lock("---------------------")
