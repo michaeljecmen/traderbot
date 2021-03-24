@@ -79,7 +79,6 @@ class TickerData:
         """Return mean, stddev, and whether or not the last K trades went up in price."""
         with self.lock.gen_rlock():
             mean, stddev = get_mean_stddev(self.prices)
-
             # if less than 3 prices, return none
             if len(self.prices) < self.trend_len:
                 return mean, stddev, "none"
@@ -92,7 +91,7 @@ class TickerData:
             # legal because k must be >= 2
             up = last_k_in_order[0] > last_k_in_order[1]
             prev = last_k_in_order[1]
-            for i in range(1, len(last_k_in_order)):
+            for i in range(2, len(last_k_in_order)):
                 if up:
                     if last_k_in_order[i] <= prev:
                         return mean, stddev, "none"
@@ -165,7 +164,7 @@ class MarketData:
         for ticker, index in self.tickers_to_indices.items():
             ticker_data = self.data[index]
             with ticker_data.lock.gen_rlock():
-                if len(ticker_data.prices) < ticker_data.k:
+                if len(ticker_data.prices) < ticker_data.trend_len:
                     # make a reversed copy of the list
                     data_snippet = ticker_data.prices[::-1]
                 else:

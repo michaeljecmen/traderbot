@@ -13,8 +13,18 @@
         "GOOG",
         "AAPL"
     ],
+    "strategy": {
+        "name": "LongShortMovingAverage",
+        "long": 200,
+        "short": 50
+    },
+    "social-sentiment-key": "your socialsentiment.io api token",
+    "social-trend-strategy": {
+        "name": "BasicTrendFollower",
+        "percent": 1
+    },
     "paper-trading": true,
-    "take-profit-percent": 0.01,
-    "max-loss-percent": 0.01,
-    "spend-percent": 0.20
+    "take-profit-percent": 1,
+    "max-loss-percent": 1,
+    "spend-percent": 20
 }

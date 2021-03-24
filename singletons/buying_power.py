@@ -1,6 +1,8 @@
 from readerwriterlock import rwlock
 import robin_stocks.robinhood as r
 
+from utilities import print_with_lock
+
 class BuyingPower:
     """Threadsafe class for shared access/updating of budget/buying power."""
     def __init__(self, percent_to_spend):
@@ -22,3 +24,9 @@ class BuyingPower:
         with self.lock.gen_rlock():
             return self.buying_power
 
+
+    def add_funds(self, amount):
+        """Use this when you close a position to add back the funds earned."""
+        with self.lock.gen_wlock():
+            self.buying_power += amount
+            print_with_lock("your account now has ${}".format(self.buying_power))

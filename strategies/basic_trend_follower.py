@@ -6,6 +6,7 @@ which would mean that the price has moved significantly more violently than
 import threading
 
 from strategies.strategy import Strategy
+from utilities import print_with_lock
 
 class BasicTrendFollower(Strategy):
     market_data = {}
@@ -25,5 +26,5 @@ class BasicTrendFollower(Strategy):
             return False
         
         # if standard deviation is more than <PERCENT>% of stock price and trending up, good buy
-        return self.percent*stddev >= mean
+        return stddev >= mean*self.percent
         

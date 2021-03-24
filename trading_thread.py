@@ -66,15 +66,14 @@ class TradingThread (threading.Thread):
 
 
     def open_position(self):
-        print_with_lock("opening position for {}".format(self.ticker))
         if self.paper_trading:
-            self.position = OpenPaperPosition(ticker, self.buying_power.spend_and_get_amount(), self.market_data)
+            self.position = OpenPaperPosition(self.ticker, self.buying_power.spend_and_get_amount(), self.market_data)
         else:
-            self.position = OpenStockPosition(ticker, self.buying_power.spend_and_get_amount(), self.market_data)
+            self.position = OpenStockPosition(self.ticker, self.buying_power.spend_and_get_amount(), self.market_data)
 
 
     def close_position(self):
-        self.position.close()
+        self.buying_power.add_funds(self.position.close())
         self.position = None
 
     

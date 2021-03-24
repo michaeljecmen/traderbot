@@ -210,9 +210,9 @@ def run_traderbot():
     USERNAME = CONFIG["username"]
     PASSWORD = CONFIG["password"]
     TICKERS = CONFIG["tickers"]
-    MAX_LOSS_PERCENT = CONFIG["max-loss-percent"]
-    TAKE_PROFIT_PERCENT = CONFIG["take-profit-percent"]
-    SPEND_PERCENT = CONFIG["spend-percent"]
+    MAX_LOSS_PERCENT = CONFIG["max-loss-percent"]/100.0
+    TAKE_PROFIT_PERCENT = CONFIG["take-profit-percent"]/100.0
+    SPEND_PERCENT = CONFIG["spend-percent"]/100.0
     PAPER_TRADING = CONFIG["paper-trading"]
     TIME_ZONE = CONFIG.get("time-zone-pandas-market-calendars", "America/New_York")
     full_start_time_str = CONFIG.get("start-of-day", "09:30") + "={}".format(TIME_ZONE)
@@ -250,7 +250,7 @@ def run_traderbot():
     market_data = MarketData(TICKERS, ALPACA_KEY, ALPACA_SECRET_KEY, HISTORY_SIZE, TREND_SIZE)
     holdings = Holdings()
     buying_power = BuyingPower(SPEND_PERCENT)
-    trade_capper = TradeCapper(TRADE_LIMIT)
+    trade_capper = TradeCapper(TRADE_LIMIT) # TODO EOD statistics: bot open for how long, traded how many shares of what, net gain / loss from each ticker, buying power before and after
 
     # now that market open is today, update EOD for time checking
     now = datetime.now()
@@ -285,14 +285,10 @@ def run_traderbot():
     for t in threads:
         t.start()
 
-    # consider having two separate threads update holdings and prices
-    i = 0
+    # update the timer in the main thread
     while market_time.is_time_left_to_trade():
         # holdings.update()
         market_time.update()
-        if i % 5000 == 0: # TODO remove after debugging complete, add a logging object
-            market_data.print_data()
-        i += 1
 
     # wait for all threads to finish
     for t in threads:
