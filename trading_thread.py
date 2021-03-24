@@ -53,15 +53,16 @@ class TradingThread (threading.Thread):
     def run(self):
         print_with_lock("thread {} began".format(self.ticker))
         
-        self.looking_to_buy()   
-        
-        # did we leave the looking to buy function because we bought in?
-        # or because we ran out of resources? if we ran out, end this thread
-        if self.position is None:
-            return
-        
-        # otherwise, we're now looking to sell
-        self.looking_to_sell()
+        while self.market_time.is_time_left_to_trade():
+            self.looking_to_buy()   
+            
+            # did we leave the looking to buy function because we bought in?
+            # or because we ran out of resources? if we ran out, end this thread
+            if self.position is None:
+                return
+            
+            # otherwise, we're now looking to sell
+            self.looking_to_sell()
 
 
     def open_position(self):
@@ -77,7 +78,7 @@ class TradingThread (threading.Thread):
         self.position = None
 
     
-    def looking_to_buy(self): # TODO allow buy and sell mult times/day
+    def looking_to_buy(self):
         # if there is no time left or we've made all of our trades or we already have a position
         while self.market_time.is_time_left_to_trade() and self.trade_capper.are_trades_left() and self.position is None:
             if self.strategy.should_buy_on_tick():
@@ -90,11 +91,11 @@ class TradingThread (threading.Thread):
             current_price = self.market_data.get_data_for_ticker(self.ticker)
             if current_price >= open_price * 1+self.take_profit_percent:
                 # closing for profit
-                self.position.close()
+                self.close_position()
                 return
             if current_price <= 1-self.max_loss_percent * open_price:
                 # closing for loss
-                self.position.close()
+                self.close_position()
                 return
         
         # if we are here, that means time left to trade has run out and we have open position -- bad

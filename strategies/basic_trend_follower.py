@@ -17,6 +17,7 @@ class BasicTrendFollower(Strategy):
             BasicTrendFollower.market_data = market_data
         self.percent = percent/100.0
         self.ticker = ticker
+
         
     def should_buy_on_tick(self):
         mean, stddev, trend = self.market_data.get_trend_for_ticker(self.ticker)

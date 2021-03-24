@@ -21,9 +21,9 @@ from singletons.market_time import MarketTime
 from singletons.holdings import Holdings
 from singletons.buying_power import BuyingPower
 from singletons.trade_capper import TradeCapper
-from strategies.basic_trend_follower import BasicTrendFollower
-from strategies.long_vs_short_moving_average import LongShortMovingAverage
-from utilities import print_with_lock, get_trending_socially_positive_tickers
+from strategies.strategy_factory import strategy_factory, enforce_strategy_dict_legal
+from utilities import print_with_lock, get_trending_socially_positive_tickers, enforce_keys_in_dict
+from traderbot_exception import ConfigException
 
 # all filescope constants will be configured in the config.json
 CONFIG_FILENAME = "config.json"
@@ -172,40 +172,30 @@ def log_in_to_robinhood():
 
 def get_json_dict():
     """Return the json dictionary found in config.json, throwing otherwise.
-    
-    The following fields are required (and mandated by this function):
-        username
-        password
-        tickers
-        paper-trading
     """
     try:
         path_to_conf = pathlib.Path(CONFIG_FILENAME)
-        data = {}
         with open(str(path_to_conf)) as json_file:
             data = json.load(json_file)
-        usr = data.get("username", "_")
-        pw = data.get("password", "_")
-        tickers = data.get("tickers", "_")
-        pt = data.get("paper-trading", "_")
-        max_loss = data.get("max-loss-percent", "_")
-        take_profit = data.get("take-profit-percent", "_") # TODO in the future allow this to be per-ticker
-        spend_percent = data.get("spend-percent", "_")
-        alpaca_key = data.get("alpaca-api-key", "_")
-        alpaca_secret_key = data.get("alpaca-secret-key", "_")
-        if usr == "_" or pw == "_" or tickers == "_" or pt == "_" or max_loss == '_' or take_profit == '_' or spend_percent == '_' or alpaca_key == '_' or alpaca_secret_key == '_':
-            print_with_lock("\"username\", \"password\", \"tickers\", \"paper-trading\", \"max-loss-percent\", "
-             "\"take-profit-percent\", \"spend-percent\", \"alpaca-api-key\", and \"alpaca-secret-key\" must "
-             "be defined in config.json -- see example.json for how to do this")
-            sys.exit(1)
+        
+        necessary_config_fields = [
+            "username",
+            "password",
+            "tickers",
+            "paper-trading",
+            "max-loss-percent",
+            "take-profit-percent",
+            "spend-percent",
+            "alpaca-api-key",
+            "alpaca-secret-key",
+            "strategy"
+        ]
+        enforce_keys_in_dict(necessary_config_fields, data)
+
         # TODO enforce that all tickers are all real & tradeable
         return data
     except FileNotFoundError:
-        print_with_lock("error: config.json file not found in current directory")
-        sys.exit(1)
-    except json.JSONDecodeError:
-        print_with_lock("error: config.json incorrectly formatted")
-        sys.exit(1)
+        raise ConfigException("error: config.json file not found in current directory")
 
 
 def run_traderbot():
@@ -233,6 +223,18 @@ def run_traderbot():
     ALPACA_KEY = CONFIG["alpaca-api-key"]
     ALPACA_SECRET_KEY = CONFIG["alpaca-secret-key"]
     SOCIAL_SENTIMENT_KEY = CONFIG.get("social-sentiment-key", None)
+    SOCIAL_STRATEGY_DICT = CONFIG.get("social-trend-strategy", None)
+    if SOCIAL_STRATEGY_DICT is not None:
+        enforce_strategy_dict_legal(SOCIAL_STRATEGY_DICT)
+    STRATEGY_DICT = CONFIG["strategy"]
+    enforce_strategy_dict_legal(STRATEGY_DICT)
+    HISTORY_SIZE = CONFIG.get("history-len", 16)
+    if not ((HISTORY_SIZE & (HISTORY_SIZE-1) == 0) and HISTORY_SIZE != 0): 
+        raise ConfigException("history-len must be a power of two, {} was entered".format(HISTORY_SIZE))
+    TREND_SIZE = CONFIG.get("trend-len", 3)
+    if TREND_SIZE > HISTORY_SIZE:
+        raise ConfigException("trend-len must be less than or equal to history-len")
+
     zero_time = timedelta()
 
     login = log_in_to_robinhood()
@@ -245,7 +247,7 @@ def run_traderbot():
 
     # these variables are shared by each trading thread. they are written by this
     # main traderbot thread, and read by each trading thread individually
-    market_data = MarketData(TICKERS, ALPACA_KEY, ALPACA_SECRET_KEY, 16)
+    market_data = MarketData(TICKERS, ALPACA_KEY, ALPACA_SECRET_KEY, HISTORY_SIZE, TREND_SIZE)
     holdings = Holdings()
     buying_power = BuyingPower(SPEND_PERCENT)
     trade_capper = TradeCapper(TRADE_LIMIT)
@@ -259,16 +261,17 @@ def run_traderbot():
     threads = []
     for ticker in TICKERS:
         # using the 50 vs 200 day moving average strategy
-        strategy = LongShortMovingAverage(market_data, ticker, 50, 200)
+        strategy = strategy_factory(STRATEGY_DICT, market_data, ticker)
         if not strategy.is_relevant():
             # don't add irrelevant tickers to the threadpool. long term TODO figure out how to remove this from TICKERS (including market data and all strategies that rely on it)
             continue
         threads.append(TradingThread(ticker, market_data, market_time, holdings, buying_power, trade_capper, strategy, TAKE_PROFIT_PERCENT, MAX_LOSS_PERCENT, PAPER_TRADING))
 
-    for ticker in get_trending_socially_positive_tickers(SOCIAL_SENTIMENT_KEY):
-        # using the social sentiment strategy
-        strategy = BasicTrendFollower(market_data, ticker, 1) # TODO make a strategy factory that takes in the config, make the strategy configurable from the config via a "strategy": {} member
-        threads.append(TradingThread(ticker, market_data, market_time, holdings, buying_power, trade_capper, strategy, TAKE_PROFIT_PERCENT, MAX_LOSS_PERCENT, PAPER_TRADING))
+    if SOCIAL_STRATEGY_DICT is not None:
+        for ticker in get_trending_socially_positive_tickers(SOCIAL_SENTIMENT_KEY):
+            # using the social sentiment strategy
+            strategy = strategy_factory(SOCIAL_STRATEGY_DICT, market_data, ticker)
+            threads.append(TradingThread(ticker, market_data, market_time, holdings, buying_power, trade_capper, strategy, TAKE_PROFIT_PERCENT, MAX_LOSS_PERCENT, PAPER_TRADING))
      
     # busy spin until we decided to start trading
     # block_until_start_trading() #TODO uncomment

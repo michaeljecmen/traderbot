@@ -2,6 +2,9 @@ import threading
 import requests
 import re
 
+from traderbot_exception import APIException, ConfigException
+
+
 _print_lock = threading.Lock()
 
 def print_with_lock(*args):
@@ -49,9 +52,18 @@ def get_trending_socially_positive_tickers(api_key):
         }
         r = requests.get(url=BASE_URL+'stocks/{}/sentiment/daily/'.format(ticker), headers=headers)
         if r.status_code != requests.codes.ok:
-            raise requests.RequestException("your social sentiment account is being throttled for overuse of the API, try again in 24hrs")
+            raise APIException("your social sentiment account is being throttled for"
+                " overuse of the API, OR your api key is incorrect. remove the social"
+                " strategy from your config.json or try again in 24hrs")
         last_week_of_scores = r.json()
         yesterdays_score = int(last_week_of_scores[-1]["score"])
         if yesterdays_score > 0:
             socially_interesting_tickers.append(ticker)
     return socially_interesting_tickers
+
+
+def enforce_keys_in_dict(keys, dic):
+    """Raises ConfigException if all keys are not in the provided dict."""
+    for key in keys:
+        if key not in dic.keys():
+            raise ConfigException("key {} was not found in the config. see the readme for more details")

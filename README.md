@@ -102,6 +102,7 @@ TODO talk about configuring the strategy
 
 ## Other Configurations
 Change these fields in the <code>config.json</code> configuration file at your own risk.
+TODO which other fields are necessary, which will be defaulted safely
 
 ### max-trades-per-day
 Increase <code>max-trades-per-day</code> at your own risk. As of the time of publication, 500/day was a good boundary for not getting your account flagged. Note

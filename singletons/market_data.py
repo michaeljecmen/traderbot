@@ -11,24 +11,24 @@ class TickerData:
     locks the reading and writing of it. Data is an array of the last
     N prices of the stock."""
 
-    def __init__(self, curr_price, n, k=3):
+    def __init__(self, curr_price, history_len, trend_len):
         """n MUST be a power of 2 >= 8 for the circular buffer to work, which is crucial
         for this class' operations to be O(1)"""
-        assert(k >= 2 and k <= n) # k must be at least 2
+        assert(trend_len >= 2 and trend_len <= history_len) # k must be at least 2
         self.lock = rwlock.RWLockWrite()
         self.prices = [float(curr_price)]
-        self.n = n
-        self.k = k
-        self.mask = n-1 # 0b01111 if n is 16
+        self.history_len = history_len
+        self.trend_len = trend_len
+        self.mask = history_len-1 # 0b01111 if n is 16
         self.ind = 0
         self.has_price_update_occurred = False
 
 
     async def trade_update_callback(self, t):
         with self.lock.gen_wlock():
-            if len(self.prices) == self.n:
+            if len(self.prices) == self.history_len:
                 # circular buffer with bitmasking
-                if self.ind == self.n:
+                if self.ind == self.history_len:
                     self.ind = 0
                 self.prices[self.ind & self.mask] = float(t.price)
                 self.ind += 1
@@ -68,7 +68,7 @@ class TickerData:
         # first get the indices (will add n to the negative ones later)
         last_k_in_order = []
         i = self.ind-1
-        for _ in range(self.k):
+        for _ in range(self.trend_len):
             last_k_in_order.append(i)
             i -= 1
 
@@ -81,7 +81,7 @@ class TickerData:
             mean, stddev = get_mean_stddev(self.prices)
 
             # if less than 3 prices, return none
-            if len(self.prices) < self.k:
+            if len(self.prices) < self.trend_len:
                 return mean, stddev, "none"
             last_k_in_order = self.get_last_k_prices_in_order()
 
@@ -115,7 +115,7 @@ class MarketData:
     """Threadsafe class that handles the concurrent reading and writing of the market data
     for the relevant tickers. Should really be a singleton."""
 
-    def __init__(self, tickers, alpaca_key, alpaca_secret_key, n):
+    def __init__(self, tickers, alpaca_key, alpaca_secret_key, history_len, trend_len):
         # all for hashless O(1) access of our sweet sweet data
         self.tickers = tickers
         self.tickers_to_indices = {}
@@ -130,7 +130,7 @@ class MarketData:
             # - most recent price
             # - rwlock
             # - callback function for stream that updates most recent price
-            ticker_data = TickerData(initial_data[self.tickers_to_indices[ticker]], n)
+            ticker_data = TickerData(initial_data[self.tickers_to_indices[ticker]], history_len, trend_len)
             self.stream.subscribe_trades(ticker_data.trade_update_callback, ticker)
             self.data.append(ticker_data)
 
@@ -170,5 +170,7 @@ class MarketData:
                     data_snippet = ticker_data.prices[::-1]
                 else:
                     data_snippet = ticker_data.get_last_k_prices_in_order()
+                
+                # data will always be nonempty for a ticker
                 print_with_lock("{}: {} {}".format(ticker, data_snippet[0], data_snippet))
         print_with_lock("---------------------")

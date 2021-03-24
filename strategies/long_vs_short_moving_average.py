@@ -16,7 +16,7 @@ class LongShortMovingAverage(Strategy):
         # if short already crossed up long, cancel this thread
         if self.short_moving_avg.get_moving_average() > self.long_moving_avg.get_moving_average():
             self.relevant = False
-    
+
 
     def is_relevant(self):
         return self.relevant
@@ -25,9 +25,6 @@ class LongShortMovingAverage(Strategy):
     def should_buy_on_tick(self):
         old_short = self.short_moving_avg.get_moving_average()
         old_long = self.long_moving_avg.get_moving_average()
-        if old_short > old_long:
-            # short already crossed up long, don't bite
-            return False
 
         # otherwise update both and buy if we now have a higher short than long MA
         self.short_moving_avg.update()
