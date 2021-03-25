@@ -8,14 +8,14 @@ import threading
 from strategies.strategy import Strategy
 from utilities import print_with_lock
 
-class BasicTrendFollower(Strategy):
+class StrictMomentum(Strategy):
     market_data = {}
     ctor_lock = threading.Lock()
     def __init__(self, market_data, ticker, percent):
         """Pass percent as a number in the range (0,100], for 5% pass 5, not .05"""
         super().__init__()
         with self.ctor_lock:
-            BasicTrendFollower.market_data = market_data
+            StrictMomentum.market_data = market_data
         self.percent = percent/100.0
         self.ticker = ticker
 

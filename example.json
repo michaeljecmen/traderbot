@@ -20,7 +20,7 @@
     },
     "social-sentiment-key": "your socialsentiment.io api token",
     "social-trend-strategy": {
-        "name": "BasicTrendFollower",
+        "name": "StrictMomentum",
         "percent": 1
     },
     "paper-trading": true,
