@@ -1,7 +1,7 @@
 """Factory module that creates a strategy based on the dict passed from the config"""
 
 from traderbot_exception import ConfigException
-from strategies.strict_momemtum import StrictMomentum
+from strategies.strict_momentum import StrictMomentum
 from strategies.long_vs_short_moving_average import LongShortMovingAverage
 from strategies.mean_reversion import MeanReversion
 from utilities import enforce_keys_in_dict

@@ -12,8 +12,8 @@ def get_api_key():
             try:
                 data = json.load(json_file)
             except json.JSONDecodeError:
-                print("config.json file incorrectly formatted")
-                sys.exit(1)
+                print("config.json file incorrectly formatted -- see the following:")
+                raise
             if 'social-sentiment-key' not in data.keys():
                 print("\"social-sentiment-key\" key-value pair not found in config.json")
                 sys.exit(1)

@@ -1,7 +1,8 @@
 # don't commit the venv, binaries differ by system and need to be installed separately
 env/
 
-# don't commit the config file, it has sensitive information. change this at your own risk
+# don't commit the config file, it has sensitive information
+# commit the example.json file instead
 config.json
 
 # don't commit the pycache, useless
