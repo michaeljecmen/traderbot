@@ -1,3 +1,4 @@
+#!env/bin/python3
 """Run this script once as you're setting up the traderbot, if you want your RH account to be MFA enabled."""
 import sys
 

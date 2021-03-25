@@ -8,21 +8,40 @@
     "time-zone-pandas-market-calendars": "EST",
     "start-of-day": "09:30",
     "end-of-day": "16:00",
-    "tickers": [
-        "AMZN",
-        "GOOG",
-        "AAPL"
+    "strategies": [
+        {
+            "tickers": [
+                "AMZN",
+                "GOOG",
+                "AAPL",
+                "NFLX",
+                "FB"
+            ],
+            "strategy": {
+                "name": "StrictMomentum",
+                "percent": 0.1
+            }
+        },
+        {
+            "tickers": [
+                "BABA",
+                "NTDOY",
+                "TSLA",
+                "RVP",
+                "MRNA",
+                "CSCW",
+                "MSFT",
+                "PLUG",
+                "GME",
+                "AMC"
+            ],
+            "strategy": {
+                "name": "MeanReversion",
+                "percent": 0.1
+            }
+        }
     ],
-    "strategy": {
-        "name": "LongShortMovingAverage",
-        "long": 200,
-        "short": 50
-    },
-    "social-sentiment-key": "your socialsentiment.io api token",
-    "social-trend-strategy": {
-        "name": "StrictMomentum",
-        "percent": 1
-    },
+    "social-sentiment-key": "your socialsentiment.io api token, if any (used by scripts/positively-trending-tickers.py)",
     "paper-trading": true,
     "take-profit-percent": 1,
     "max-loss-percent": 1,

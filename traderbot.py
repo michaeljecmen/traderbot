@@ -22,7 +22,7 @@ from singletons.holdings import Holdings
 from singletons.buying_power import BuyingPower
 from singletons.trade_capper import TradeCapper
 from strategies.strategy_factory import strategy_factory, enforce_strategy_dict_legal
-from utilities import print_with_lock, get_trending_socially_positive_tickers, enforce_keys_in_dict
+from utilities import print_with_lock, enforce_keys_in_dict
 from traderbot_exception import ConfigException
 
 # all filescope constants will be configured in the config.json
@@ -33,7 +33,6 @@ CONFIG_FILENAME = "config.json"
 # functions and threads (will only be read after config reading)
 USERNAME = ""
 PASSWORD = ""
-TICKERS = ""
 PAPER_TRADING = ""
 TIME_ZONE = ""
 START_OF_DAY = ""
@@ -75,7 +74,8 @@ def pick_humanlike_end_time():
     seconds_from_end = randrange(interval)
 
     end_time = upper_bound - timedelta(seconds=seconds_from_end)
-    return end_time.time()
+    # return end_time.time()
+    return upper_bound.time()
 
 
 def pick_humanlike_trade_cap():
@@ -181,14 +181,13 @@ def get_json_dict():
         necessary_config_fields = [
             "username",
             "password",
-            "tickers",
             "paper-trading",
             "max-loss-percent",
             "take-profit-percent",
             "spend-percent",
             "alpaca-api-key",
             "alpaca-secret-key",
-            "strategy"
+            "strategies"
         ]
         enforce_keys_in_dict(necessary_config_fields, data)
 
@@ -204,12 +203,11 @@ def run_traderbot():
     Spawns a thread for each ticker that trades on that symbol
     for the duration of the day."""
     # get info from config file and log in
-    global USERNAME, PASSWORD, TICKERS, PAPER_TRADING, TIME_ZONE
+    global USERNAME, PASSWORD, PAPER_TRADING, TIME_ZONE
     global START_OF_DAY, END_OF_DAY, TRADE_LIMIT, CONFIG
     CONFIG = get_json_dict()
     USERNAME = CONFIG["username"]
     PASSWORD = CONFIG["password"]
-    TICKERS = CONFIG["tickers"]
     MAX_LOSS_PERCENT = CONFIG["max-loss-percent"]/100.0
     TAKE_PROFIT_PERCENT = CONFIG["take-profit-percent"]/100.0
     SPEND_PERCENT = CONFIG["spend-percent"]/100.0
@@ -222,12 +220,7 @@ def run_traderbot():
     TRADE_LIMIT = CONFIG.get("max-trades-per-day", None)
     ALPACA_KEY = CONFIG["alpaca-api-key"]
     ALPACA_SECRET_KEY = CONFIG["alpaca-secret-key"]
-    SOCIAL_SENTIMENT_KEY = CONFIG.get("social-sentiment-key", None)
-    SOCIAL_STRATEGY_DICT = CONFIG.get("social-trend-strategy", None)
-    if SOCIAL_STRATEGY_DICT is not None:
-        enforce_strategy_dict_legal(SOCIAL_STRATEGY_DICT)
-    STRATEGY_DICT = CONFIG["strategy"]
-    enforce_strategy_dict_legal(STRATEGY_DICT)
+    STRATEGIES_DICT = CONFIG["strategies"]
     HISTORY_SIZE = CONFIG.get("history-len", 16)
     if not ((HISTORY_SIZE & (HISTORY_SIZE-1) == 0) and HISTORY_SIZE != 0): 
         raise ConfigException("history-len must be a power of two, {} was entered".format(HISTORY_SIZE))
@@ -239,6 +232,14 @@ def run_traderbot():
 
     login = log_in_to_robinhood()
 
+    # get list of unique tickers and enforce legality of strategies kv in the config
+    ALL_TICKERS = []
+    for st in STRATEGIES_DICT:
+        enforce_keys_in_dict(['strategy', 'tickers'], st)
+        enforce_strategy_dict_legal(st['strategy'])
+        ALL_TICKERS.extend(st['tickers'])
+    ALL_TICKERS = list(set(ALL_TICKERS))
+
     # generate parameters so we don't get flagged
     START_OF_DAY, END_OF_DAY, TRADE_LIMIT = generate_humanlike_parameters()
 
@@ -247,7 +248,7 @@ def run_traderbot():
 
     # these variables are shared by each trading thread. they are written by this
     # main traderbot thread, and read by each trading thread individually
-    market_data = MarketData(TICKERS, ALPACA_KEY, ALPACA_SECRET_KEY, HISTORY_SIZE, TREND_SIZE)
+    market_data = MarketData(ALL_TICKERS, ALPACA_KEY, ALPACA_SECRET_KEY, HISTORY_SIZE, TREND_SIZE)
     holdings = Holdings()
     buying_power = BuyingPower(SPEND_PERCENT)
     trade_capper = TradeCapper(TRADE_LIMIT) # TODO EOD statistics: bot open for how long, traded how many shares of what, net gain / loss from each ticker, buying power before and after
@@ -259,20 +260,19 @@ def run_traderbot():
 
     # spawn thread for each ticker
     threads = []
-    for ticker in TICKERS:
-        # using the 50 vs 200 day moving average strategy
-        strategy = strategy_factory(STRATEGY_DICT, market_data, ticker)
-        if not strategy.is_relevant():
-            # don't add irrelevant tickers to the threadpool. long term TODO figure out how to remove this from TICKERS (including market data and all strategies that rely on it)
-            continue
-        threads.append(TradingThread(ticker, market_data, market_time, holdings, buying_power, trade_capper, strategy, TAKE_PROFIT_PERCENT, MAX_LOSS_PERCENT, PAPER_TRADING))
-
-    if SOCIAL_STRATEGY_DICT is not None:
-        for ticker in get_trending_socially_positive_tickers(SOCIAL_SENTIMENT_KEY):
-            # using the social sentiment strategy
-            strategy = strategy_factory(SOCIAL_STRATEGY_DICT, market_data, ticker)
+    for st in STRATEGIES_DICT:
+        strategy_dict = st['strategy']
+        tickers = st['tickers']
+        for ticker in tickers:
+            print_with_lock("initializing thread {} with strategy configuration {}".format(ticker, strategy_dict))
+            strategy = strategy_factory(strategy_dict, market_data, ticker)
+            if not strategy.is_relevant():
+                # don't add irrelevant tickers to the threadpool.
+                # long term could figure out how to remove this
+                # from the market data object too
+                continue
             threads.append(TradingThread(ticker, market_data, market_time, holdings, buying_power, trade_capper, strategy, TAKE_PROFIT_PERCENT, MAX_LOSS_PERCENT, PAPER_TRADING))
-     
+
     # busy spin until we decided to start trading
     # block_until_start_trading() #TODO uncomment
 
