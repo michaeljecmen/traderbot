@@ -7,7 +7,7 @@ from strategies.mean_reversion import MeanReversion
 from utilities import enforce_keys_in_dict
 
 # update this whenever you add a new strategy. used for error checking
-# as early as possible.
+# as early as possible (before the long blocking calls)
 _strategy_required_fields = {
     "LongShortMovingAverage": [
         "long", 

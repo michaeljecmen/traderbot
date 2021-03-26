@@ -31,7 +31,7 @@ class TradingThread (threading.Thread):
     def __init__(self, ticker, market_data, market_time, holdings, buying_power, trade_capper, strategy, take_profit_percent, max_loss_percent, paper_trading=True):
         # safety first when setting class variables
         threading.Thread.__init__(self)
-        with self.ctor_lock:
+        with self.ctor_lock: # TODO each thread tracks its own stats and they all print together at the end
             # set shared concurrent data
             TradingThread.market_data = market_data
             TradingThread.market_time = market_time
