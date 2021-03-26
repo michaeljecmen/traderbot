@@ -18,8 +18,6 @@ class TradeCapper:
 
         # decrement this value eagerly until zero
         self.num_trades_left_today = max_trades_per_day
-        
-        
 
     def make_trade(self):
         with self.lock.gen_wlock():

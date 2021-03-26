@@ -52,9 +52,7 @@ def pick_humanlike_start_time():
     start_seconds = randrange(interval)
 
     start_time = lower_bound + timedelta(seconds=start_seconds)
-    # return start_time.time()
-    return upper_bound.time()
-
+    return start_time.time()
 
 def pick_humanlike_end_time():
     # give ourselves a 5 minute window on the upper end, don't want to 
@@ -75,14 +73,11 @@ def pick_humanlike_end_time():
     seconds_from_end = randrange(interval)
 
     end_time = upper_bound - timedelta(seconds=seconds_from_end)
-    # return end_time.time()
-    return upper_bound.time()
-
+    return end_time.time()
 
 def pick_humanlike_trade_cap():
     # pick trade limit within 100 of trade cap
     return TRADE_LIMIT - randrange(100)
-
 
 def generate_humanlike_parameters():
     # "today" means the next trading day
@@ -95,7 +90,6 @@ def generate_humanlike_parameters():
     todays_trade_cap = pick_humanlike_trade_cap()
     print_with_lock("param: will make a maximum of {} trades today".format(todays_trade_cap))
     return todays_start_time, todays_end_time, todays_trade_cap
-
 
 def get_next_market_open_time():
     """Based on the current time, gets the next time the market will be open.
@@ -115,7 +109,6 @@ def get_next_market_open_time():
     next_market_open = sched['market_open'][0] # keep it as UTC for most calculations
     return next_market_open.to_pydatetime().replace(tzinfo=None)
 
-
 def get_time_until_market_open():
     """Return the amount of time until the market reopens."""
     next_open = get_next_market_open_time()
@@ -124,7 +117,6 @@ def get_time_until_market_open():
     time_until_open = next_open - now
     return time_until_open
     
-
 def block_until_market_open():
     """Block until market open.
     
@@ -139,7 +131,6 @@ def block_until_market_open():
         # update timedelta
         time_until_open = get_time_until_market_open()
     print_with_lock("market is open")
-
 
 def block_until_start_trading():
     """Block until the pre-determined time when we will start trading.
@@ -158,7 +149,6 @@ def block_until_start_trading():
         time_until_start_trading = start_of_day_datetime - datetime.now()
     print_with_lock("beginning trading")
 
-
 def log_in_to_robinhood():
     # only use mfa login if it is enabled
     mfa_code=None
@@ -169,7 +159,6 @@ def log_in_to_robinhood():
     login = r.login(USERNAME, PASSWORD, mfa_code=mfa_code)
     print_with_lock("logged in as user {}".format(USERNAME))
     return login
-
 
 def get_json_dict():
     """Return the json dictionary found in config.json, throwing otherwise.
@@ -196,7 +185,6 @@ def get_json_dict():
         return data
     except FileNotFoundError:
         raise ConfigException("error: config.json file not found in current directory")
-
 
 def run_traderbot():
     """Main function for this module.

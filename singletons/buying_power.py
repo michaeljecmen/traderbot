@@ -9,7 +9,6 @@ class BuyingPower:
         self.lock = rwlock.RWLockWrite()
         self.buying_power = float(r.profiles.load_account_profile(info='buying_power'))
         self.amount_per_buy = self.buying_power * percent_to_spend
-    
 
     def spend_and_get_amount(self):
         """Spend the previously denoted amount (a constant percent of our 
@@ -18,12 +17,10 @@ class BuyingPower:
             spent = min(self.buying_power, self.amount_per_buy)
             self.buying_power -= spent
         return spent
-    
 
     def get_available_buying_power(self):
         with self.lock.gen_rlock():
             return self.buying_power
-
 
     def add_funds(self, amount):
         """Use this when you close a position to add back the funds earned."""

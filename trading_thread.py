@@ -15,6 +15,9 @@ class TradingThread (threading.Thread):
     # lock to keep everything in order during construction
     ctor_lock = threading.Lock()
 
+    # true constants
+    BUDGET_THRESHHOLD = 0.1
+
     # these must be reader locked. they are updated by the outer thread
     holdings = {}
     market_data = {}
@@ -65,10 +68,16 @@ class TradingThread (threading.Thread):
 
 
     def open_position(self):
+        # do not buy if we're out of funds!
+        budget = self.buying_power.spend_and_get_amount()
+        if budget < self.BUDGET_THRESHHOLD:
+            # don't make trades for under 10c
+            # inform that we did not buy
+            return
         if self.paper_trading:
-            self.position = OpenPaperPosition(self.ticker, self.buying_power.spend_and_get_amount(), self.market_data)
+            self.position = OpenPaperPosition(self.ticker, budget, self.market_data)
         else:
-            self.position = OpenStockPosition(self.ticker, self.buying_power.spend_and_get_amount(), self.market_data)
+            self.position = OpenStockPosition(self.ticker, budget, self.market_data)
 
 
     def close_position(self):
