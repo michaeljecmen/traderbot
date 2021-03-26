@@ -10,7 +10,6 @@ from position import OpenPaperPosition, OpenStockPosition
 from singletons.market_data import MarketData
 from singletons.trade_capper import TradeCapper
 from utilities import print_with_lock
-import strategies.long_vs_short_moving_average
 
 class TradingThread (threading.Thread):
     # lock to keep everything in order during construction

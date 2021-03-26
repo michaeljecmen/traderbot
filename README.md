@@ -143,3 +143,5 @@ a much more algorithmic-friendly api
 
 change back to alpaca_trade_api==1.0.1 if you have problems with asyncio event loop again
 otherwise download new package version and run it
+
+test double down on tickers in diff strategies

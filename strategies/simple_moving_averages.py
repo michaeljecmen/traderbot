@@ -3,8 +3,8 @@ from singletons.market_data import MarketData
 from strategies.moving_average import MovingAverage
 from utilities import print_with_lock
 
-class LongShortMovingAverage(Strategy):
-    """Buy when the short day moving average crosses up the long day 
+class SimpleMovingAverages(Strategy):
+    """Buy when the short <num_trades> moving average crosses up the long <num_trades>
     moving average for the given ticker."""
 
     def __init__(self, market_data, ticker, short, long):
@@ -15,15 +15,6 @@ class LongShortMovingAverage(Strategy):
         self.long_moving_avg = MovingAverage(market_data, ticker, long)
         self.relevant = True
 
-        # if short already crossed up long, cancel this thread
-        if self.short_moving_avg.get_moving_average() > self.long_moving_avg.get_moving_average():
-            self.relevant = False
-
-
-    def is_relevant(self):
-        return self.relevant
-
-
     def should_buy_on_tick(self):
         # update both and buy if we have a higher short than long MA
         self.short_moving_avg.update()
@@ -32,4 +23,4 @@ class LongShortMovingAverage(Strategy):
         return self.short_moving_avg.get_moving_average() > self.long_moving_avg.get_moving_average()
 
     def get_name(self):
-        return 'LongShortMovingAverage with long={} short={}'.format(self.long, self.short)
+        return 'SimpleMovingAverages with long={} short={}'.format(self.long, self.short)

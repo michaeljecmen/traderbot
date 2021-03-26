@@ -2,14 +2,14 @@
 
 from traderbot_exception import ConfigException
 from strategies.strict_momentum import StrictMomentum
-from strategies.long_vs_short_moving_average import LongShortMovingAverage
+from strategies.historical_moving_average import HistoricalMovingAverage
 from strategies.mean_reversion import MeanReversion
 from utilities import enforce_keys_in_dict
 
 # update this whenever you add a new strategy. used for error checking
 # as early as possible (before the long blocking calls)
 _strategy_required_fields = {
-    "LongShortMovingAverage": [
+    "HistoricalMovingAverage": [
         "long", 
         "short"
     ],
@@ -32,8 +32,8 @@ def strategy_factory(strategy, market_data, ticker):
     enforce_strategy_dict_legal(strategy)
     name = strategy['name']
 
-    if name == "LongShortMovingAverage":
-        return LongShortMovingAverage(market_data, ticker, strategy['short'], strategy['long'])
+    if name == "HistoricalMovingAverage":
+        return HistoricalMovingAverage(market_data, ticker, strategy['short'], strategy['long'])
     elif name == "StrictMomentum":
         return StrictMomentum(market_data, ticker, strategy['percent'])
     elif name == "MeanReversion":

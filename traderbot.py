@@ -45,14 +45,15 @@ def pick_humanlike_start_time():
     # pick start time within first 30 minutes of market open
     # need dummy year month day here
     lower_bound = datetime(1,1,1, START_OF_DAY.hour, START_OF_DAY.minute, START_OF_DAY.second)
-    upper_bound = lower_bound + timedelta(minutes=30)
+    upper_bound = lower_bound + timedelta(hours=4, minutes=00)
 
     # interval from 0 to this value in seconds is our go-range
     interval = (upper_bound - lower_bound).seconds
     start_seconds = randrange(interval)
 
     start_time = lower_bound + timedelta(seconds=start_seconds)
-    return start_time.time()
+    # return start_time.time()
+    return upper_bound.time()
 
 
 def pick_humanlike_end_time():
@@ -154,7 +155,7 @@ def block_until_start_trading():
         if last_print - time_until_start_trading > timedelta(minutes=5):
             print_with_lock("market is open. will start trading in: ", time_until_start_trading)
             last_print = time_until_start_trading
-        time_until_start_trading = start_of_day_datetime - now
+        time_until_start_trading = start_of_day_datetime - datetime.now()
     print_with_lock("beginning trading")
 
 
@@ -244,7 +245,7 @@ def run_traderbot():
     START_OF_DAY, END_OF_DAY, TRADE_LIMIT = generate_humanlike_parameters()
 
     # busy-spin until market open
-    # block_until_market_open() #TODO uncomment
+    block_until_market_open()
 
     # these variables are shared by each trading thread. they are written by this
     # main traderbot thread, and read by each trading thread individually
@@ -274,7 +275,7 @@ def run_traderbot():
             threads.append(TradingThread(ticker, market_data, market_time, holdings, buying_power, trade_capper, strategy, TAKE_PROFIT_PERCENT, MAX_LOSS_PERCENT, PAPER_TRADING))
 
     # busy spin until we decided to start trading
-    # block_until_start_trading() #TODO uncomment
+    block_until_start_trading()
 
     # update before we start threads to avoid mass panic
     market_data.start_stream()

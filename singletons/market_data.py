@@ -20,9 +20,8 @@ class TickerData:
         self.history_len = history_len
         self.trend_len = trend_len
         self.mask = history_len-1 # 0b01111 if n is 16
-        self.ind = 0
+        self.ind = 1
         self.has_price_update_occurred = False
-
 
     async def trade_update_callback(self, t):
         with self.lock.gen_wlock():
@@ -37,12 +36,10 @@ class TickerData:
                 self.ind += 1
             self.has_price_update_occurred = True
         
-
     def get_price(self):
         with self.lock.gen_rlock():
             return self.prices[self.ind-1]
         
-    
     def get_next_price(self):
         """Blocks until the next price comes in from the callback."""
         with self.lock.gen_wlock():
@@ -62,7 +59,6 @@ class TickerData:
         lock.release()
         return self.get_price()
 
-
     def get_last_k_prices_in_order(self):
         """This function assumes you have the rlock already."""
         # first get the indices (will add n to the negative ones later)
@@ -74,7 +70,6 @@ class TickerData:
 
         return list(map((lambda x: self.prices[x] if x in range(len(self.prices)) else self.prices[x+len(self.prices)]), last_k_in_order))
     
-
     def get_trend(self):
         """Return mean, stddev, and whether or not the last K trades went up in price."""
         with self.lock.gen_rlock():
@@ -89,6 +84,8 @@ class TickerData:
             # if inconclusive, neutral
 
             # legal because k must be >= 2
+            if last_k_in_order[0] == last_k_in_order[1]:
+                return mean, stddev, "none"
             up = last_k_in_order[0] > last_k_in_order[1]
             prev = last_k_in_order[1]
             for i in range(2, len(last_k_in_order)):
@@ -103,7 +100,6 @@ class TickerData:
             
             # otherwise all k passed the trend
             return mean, stddev, "up" if up else "down"
-
 
     def print(self):
         with self.lock.gen_rlock():
@@ -134,7 +130,9 @@ class MarketData:
             self.data.append(ticker_data)
 
         # only start stream when the market is open
-
+    
+    def get_ticker_data_for_ticker(self, ticker):
+        return self.data[self.tickers_to_indices[ticker]]
 
     def start_stream(self):
         """Call this function when the market is open.
@@ -144,19 +142,15 @@ class MarketData:
         self.stream_thread = threading.Thread(target=self.stream.run, daemon=True)
         self.stream_thread.start()
 
-
     def get_data_for_ticker(self, ticker):
         # can be called by any thread
-        return self.data[self.tickers_to_indices[ticker]].get_price()
-    
+        return self.get_ticker_data_for_ticker(ticker).get_price()
 
     def get_next_data_for_ticker(self, ticker):
-        return self.data[self.tickers_to_indices[ticker]].get_next_price()
-
+        return self.get_ticker_data_for_ticker(ticker).get_next_price()
 
     def get_trend_for_ticker(self, ticker):
-        return self.data[self.tickers_to_indices[ticker]].get_trend()
-
+        return self.get_ticker_data_for_ticker(ticker).get_trend()
 
     def print_data(self):
         """Pretty printing for the internal data of this object."""
