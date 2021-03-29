@@ -16,12 +16,20 @@ class TickerData:
         for this class' operations to be O(1)"""
         assert(trend_len >= 2 and trend_len <= history_len) # k must be at least 2
         self.lock = rwlock.RWLockWrite()
+
+        # important: do not modify these two names, they are used by
+        # strategies/simple_moving_average. unfortunate breach
+        # of privacy but was necessary for speed gains
         self.prices = [float(curr_price)]
+        self.ind = 1
+
         self.history_len = history_len
         self.trend_len = trend_len
         self.mask = history_len-1 # 0b01111 if n is 16
-        self.ind = 1
         self.has_price_update_occurred = False
+
+        # track the first price of the day for EOD report
+        self.first_price_seen = -1
 
     async def trade_update_callback(self, t):
         with self.lock.gen_wlock():
@@ -34,6 +42,8 @@ class TickerData:
             else:
                 self.prices.append(float(t.price))
                 self.ind += 1
+                if self.first_price_seen == -1:
+                    self.first_price_seen = float(t.price)
             self.has_price_update_occurred = True
         
     def get_price(self):
@@ -79,6 +89,8 @@ class TickerData:
                 return mean, stddev, "none"
             last_k_in_order = self.get_last_k_prices_in_order()
 
+            # could probably release the rlock here
+
             # if all k went up from prev, good sign
             # if all k went down, bad sign
             # if inconclusive, neutral
@@ -100,6 +112,10 @@ class TickerData:
             
             # otherwise all k passed the trend
             return mean, stddev, "up" if up else "down"
+
+    def get_first_price_of_day(self):
+        with self.lock.gen_rlock():
+            return self.first_price_seen
 
     def print(self):
         with self.lock.gen_rlock():
@@ -151,6 +167,9 @@ class MarketData:
 
     def get_trend_for_ticker(self, ticker):
         return self.get_ticker_data_for_ticker(ticker).get_trend()
+    
+    def get_first_price_of_day_for_ticker(self, ticker):
+        return self.get_data_for_ticker(ticker).get_first_price_of_day()
 
     def print_data(self):
         """Pretty printing for the internal data of this object."""

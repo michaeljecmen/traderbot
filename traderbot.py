@@ -18,7 +18,6 @@ import yfinance as yf
 from trading_thread import TradingThread
 from singletons.market_data import MarketData, TickerData
 from singletons.market_time import MarketTime
-from singletons.holdings import Holdings
 from singletons.buying_power import BuyingPower
 from singletons.trade_capper import TradeCapper
 from strategies.strategy_factory import strategy_factory, enforce_strategy_dict_legal
@@ -238,7 +237,6 @@ def run_traderbot():
     # these variables are shared by each trading thread. they are written by this
     # main traderbot thread, and read by each trading thread individually
     market_data = MarketData(ALL_TICKERS, ALPACA_KEY, ALPACA_SECRET_KEY, HISTORY_SIZE, TREND_SIZE)
-    holdings = Holdings()
     buying_power = BuyingPower(SPEND_PERCENT)
     trade_capper = TradeCapper(TRADE_LIMIT) # TODO EOD statistics: bot open for how long, traded how many shares of what, net gain / loss from each ticker, buying power before and after
 
@@ -260,14 +258,13 @@ def run_traderbot():
                 # long term could figure out how to remove this
                 # from the market data object too
                 continue
-            threads.append(TradingThread(ticker, market_data, market_time, holdings, buying_power, trade_capper, strategy, TAKE_PROFIT_PERCENT, MAX_LOSS_PERCENT, PAPER_TRADING))
+            threads.append(TradingThread(ticker, market_data, market_time, buying_power, trade_capper, strategy, TAKE_PROFIT_PERCENT, MAX_LOSS_PERCENT, PAPER_TRADING))
 
     # busy spin until we decided to start trading
     block_until_start_trading()
 
     # update before we start threads to avoid mass panic
     market_data.start_stream()
-    # holdings.update()
     market_time.update()
 
     # start all threads
@@ -276,84 +273,26 @@ def run_traderbot():
 
     # update the timer in the main thread
     while market_time.is_time_left_to_trade():
-        # holdings.update()
         market_time.update()
 
     # wait for all threads to finish
+    reports = []
     for t in threads:
         t.join()
+        reports.append(t.get_eod_report())
+    
+    # now pretty print reports
+    # cheat and use json serializer, better than pprint
+    # for nested dicts
+    print_with_lock("=============================== EOD REPORTS ===============================")
+    for report in reports:
+        print_with_lock(json.dumps(report, indent=4))
+    print_with_lock("===========================================================================")
 
     # tidy up after ourselves
     r.logout()
     print_with_lock("logged out user {}".format(USERNAME))
 
-    # TODO login expires after a day, so expect that the user runs the script once 
-    # per day (probably best after hours) and if any login trouble handle it on your own
-
-    # each traded stock spawns a thread that manages its own state machine until just before end of day when
-    # ordered to close positions. states include:
-    # not bought in
-    # bought in and making > 1% (above profit thresh) -- hold and sell when peak or crosses back down thresh?
-    # bought in and making < 1% hold until loss of 1% or state changes
-    # EOD state: close out position soon, or absolute sell if close to market close (within 5 minutes, say)
-
-    # how much per trade? come up with a confidence factor in the success of the trade and invest 
-    # the buying power $ I have proportionially?
-
-    # use yahoo finance or pandas data -- free and dope
-    # https://github.com/SaltyDalty0/Finances/blob/main/quick_stonks.py
-    # https://pypi.org/project/yahoo-finance/
-
 # TODO figure out how to backtest this all on historical data
 if __name__ == "__main__":
     run_traderbot()
-
-    ### socialsentiment test, worked well, implementing as strategy
-    # 25 api requests per day with basic account
-    # steal trending stocks from home page without paying for premium subscription
-    # just regex the html lol
-    # r = requests.get(url='https://socialsentiment.io/stocks/')
-    # content = str(r.content)
-    # m = re.findall('/stocks/symbol/[A-Z]*/', content)
-    # m = [ url.split("/")[-2] for url in m ]
-    # m = list(set(m))
-    # print("today's trending stocks:", m)
-
-    # BASE_URL = 'https://socialsentiment.io/api/v1/'
-    # API_KEY = 'YOUR_API_KEY'
-    # headers = {
-    #     "Authorization" : "Token {}".format(API_KEY)
-    # }
-    # for ticker in m:
-    #     r = requests.get(url=BASE_URL+'stocks/{}/sentiment/daily/'.format(ticker), headers=headers)
-    #     print(r.json())
-
-    ### alpaca test, worked well, implementing
-    # stream = Stream('AKEK257SVC1NSFDCSTMF', 'uGhNF4IFJ60qAnf4ODp8DAxcr2fe50FDLG8H0qwJ', data_feed='iex')
-    # async def trade_callback(t):
-    #     print("trade made:", t.symbol, t.price)
-    # async def amzn_callback(t):
-    #     print("AMZN TRADE MADE:", t.symbol, t.price)
-    # async def aapl_callback(t):
-    #     print("AAPL TRADE MADE:", t.symbol, t.price)
-    # async def goog_callback(t):
-    #     print("GOOG TRADE MADE:", t.symbol, t.price)
-    # callbacks = []
-    # callbacks.append(aapl_callback)
-    # callbacks.append(amzn_callback)
-    # callbacks.append(goog_callback)
-    # tickers = ["AAPL", "AMZN", "GOOG"]
-    # for i in range(len(tickers)):
-    #     stream.subscribe_trades(callbacks[i], tickers[i])
-    # stream.run()
-    # while True:
-    #     pass
-
-    #### yfinance test, kind of slow
-    # count = 0
-    # tickers = [yf.Ticker("MSFT"), yf.Ticker("AAPL"), yf.Ticker("AMZN"), yf.Ticker("GOOG"), yf.Ticker("NFLX")]
-    # while True:
-    #     for ticker in tickers:
-    #         count += 1
-    #         print("REQUEST NUMBER {}:".format(count), ticker.history(period="1m", interval="1m", prepost=True))
-    

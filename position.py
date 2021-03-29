@@ -16,7 +16,13 @@ class Position:
 
     def _fnum(self, num):
         return "{:0.{}f}".format(num, self._precision)
+    
+    def get_quantity(self):
+        return self.quantity
 
+    def get_open_price(self):
+        return self.open_price
+        
     def print_open(self):
         fqty = self._fnum(self.quantity)
         fop = self._fnum(self.open_price)
@@ -36,6 +42,8 @@ class OpenStockPosition(Position):
     """Class used for real trading."""
 
     def __init__(self, ticker, budget):
+        """Blocks until the order is filled, 
+        or the timeout passes (in which case the order is cancelled and retried)."""
         # open the position given the allocated budget
         resp = r.orders.order_buy_fractional_by_price(
             ticker, budget, timeInForce='gfd', extendedHours=False, jsonify=True)
@@ -45,16 +53,15 @@ class OpenStockPosition(Position):
         super().__init__(ticker, resp["quantity"], resp["price"])
         self.print_open()
 
-    def get_open_price(self):
-        return self.open_price
 
     def close(self):
-        """Returns the total amount of money closed for."""
+        """Returns the close price. Blocks until the order is filled, 
+        or the timeout passes (in which case the order is cancelled and retried)."""
         # robin_stocks.robinhood.orders.order_sell_fractional_by_quantity(symbol, quantity, timeInForce='gfd', priceType='bid_price', extendedHours=False, jsonify=True)
         # then confirm that sell actually worked
         close_price = 0.0
         self.print_close(close_price)
-        pass  # TODO
+        return close_price # TODO
 
 
 class OpenPaperPosition(Position):
@@ -73,13 +80,10 @@ class OpenPaperPosition(Position):
         super().__init__(ticker, quantity, open_price)
         self.print_open()
 
-    def get_open_price(self):
-        return self.open_price
-
     def close(self):
-        """Returns the total amount of money closed for."""
+        """Returns the close price."""
         # get price right now to see what we would've sold at
         close_price = self.market_data.get_next_data_for_ticker(self.ticker)
         self.print_close(close_price)
 
-        return close_price*self.quantity
+        return close_price
