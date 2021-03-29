@@ -6,6 +6,7 @@ from datetime import datetime, date, timedelta
 from random import randrange
 import threading
 import re
+import pprint
 
 import requests
 import robin_stocks.robinhood as r
@@ -20,6 +21,7 @@ from singletons.market_data import MarketData, TickerData
 from singletons.market_time import MarketTime
 from singletons.buying_power import BuyingPower
 from singletons.trade_capper import TradeCapper
+from singletons.reports import Reports
 from strategies.strategy_factory import strategy_factory, enforce_strategy_dict_legal
 from utilities import print_with_lock, enforce_keys_in_dict
 from traderbot_exception import ConfigException
@@ -44,11 +46,13 @@ def pick_humanlike_start_time():
     # pick start time within first 30 minutes of market open
     # need dummy year month day here
     lower_bound = datetime(1,1,1, START_OF_DAY.hour, START_OF_DAY.minute, START_OF_DAY.second)
-    upper_bound = lower_bound + timedelta(hours=4, minutes=00)
+    upper_bound = lower_bound + timedelta(hours=0, minutes=00) # TODO change back
 
     # interval from 0 to this value in seconds is our go-range
     interval = (upper_bound - lower_bound).seconds
-    start_seconds = randrange(interval)
+    start_seconds = 0
+    if interval != 0:
+        start_seconds = randrange(interval)
 
     start_time = lower_bound + timedelta(seconds=start_seconds)
     return start_time.time()
@@ -81,13 +85,11 @@ def pick_humanlike_trade_cap():
 def generate_humanlike_parameters():
     # "today" means the next trading day
     todays_start_time = pick_humanlike_start_time()
-    print_with_lock("param: will start trading today at:", todays_start_time)
     
     todays_end_time = pick_humanlike_end_time()
-    print_with_lock("param: will stop trading today at:", todays_end_time)
 
     todays_trade_cap = pick_humanlike_trade_cap()
-    print_with_lock("param: will make a maximum of {} trades today".format(todays_trade_cap))
+
     return todays_start_time, todays_end_time, todays_trade_cap
 
 def get_next_market_open_time():
@@ -206,6 +208,9 @@ def run_traderbot():
     START_OF_DAY = datetime.strptime(full_start_time_str, "%H:%M=%Z").time()
     END_OF_DAY = datetime.strptime(full_end_time_str, "%H:%M=%Z").time()
     TRADE_LIMIT = CONFIG.get("max-trades-per-day", None)
+    BUDGET = CONFIG.get("budget", None)
+    END_TIME_STR = CONFIG.get("end-time", None)
+    START_TIME_STR = CONFIG.get("start-time", None)
     ALPACA_KEY = CONFIG["alpaca-api-key"]
     ALPACA_SECRET_KEY = CONFIG["alpaca-secret-key"]
     STRATEGIES_DICT = CONFIG["strategies"]
@@ -230,6 +235,15 @@ def run_traderbot():
 
     # generate parameters so we don't get flagged
     START_OF_DAY, END_OF_DAY, TRADE_LIMIT = generate_humanlike_parameters()
+    datetime_fmt_str = '%H:%M:%S'
+    if END_TIME_STR is not None:
+        END_OF_DAY = datetime.strptime(END_TIME_STR, datetime_fmt_str).time()
+    if START_TIME_STR is not None:
+        START_OF_DAY = datetime.strptime(START_TIME_STR, datetime_fmt_str).time()
+
+    print_with_lock("param: will start trading today at:", START_OF_DAY)
+    print_with_lock("param: will stop trading today at:", END_OF_DAY)
+    print_with_lock("param: will make a maximum of {} trades today".format(TRADE_LIMIT))
 
     # busy-spin until market open
     block_until_market_open()
@@ -237,13 +251,14 @@ def run_traderbot():
     # these variables are shared by each trading thread. they are written by this
     # main traderbot thread, and read by each trading thread individually
     market_data = MarketData(ALL_TICKERS, ALPACA_KEY, ALPACA_SECRET_KEY, HISTORY_SIZE, TREND_SIZE)
-    buying_power = BuyingPower(SPEND_PERCENT)
-    trade_capper = TradeCapper(TRADE_LIMIT) # TODO EOD statistics: bot open for how long, traded how many shares of what, net gain / loss from each ticker, buying power before and after
+    buying_power = BuyingPower(SPEND_PERCENT, BUDGET)
+    trade_capper = TradeCapper(TRADE_LIMIT)
 
     # now that market open is today, update EOD for time checking
     now = datetime.now()
     END_OF_DAY = datetime(now.year, now.month, now.day, END_OF_DAY.hour, END_OF_DAY.minute, END_OF_DAY.second, END_OF_DAY.microsecond)
     market_time = MarketTime(END_OF_DAY)
+    reports = Reports()
 
     # spawn thread for each ticker
     threads = []
@@ -258,7 +273,7 @@ def run_traderbot():
                 # long term could figure out how to remove this
                 # from the market data object too
                 continue
-            threads.append(TradingThread(ticker, market_data, market_time, buying_power, trade_capper, strategy, TAKE_PROFIT_PERCENT, MAX_LOSS_PERCENT, PAPER_TRADING))
+            threads.append(TradingThread(ticker, market_data, market_time, buying_power, trade_capper, strategy, reports, TAKE_PROFIT_PERCENT, MAX_LOSS_PERCENT, PAPER_TRADING))
 
     # busy spin until we decided to start trading
     block_until_start_trading()
@@ -276,18 +291,11 @@ def run_traderbot():
         market_time.update()
 
     # wait for all threads to finish
-    reports = []
     for t in threads:
         t.join()
-        reports.append(t.get_eod_report())
     
     # now pretty print reports
-    # cheat and use json serializer, better than pprint
-    # for nested dicts
-    print_with_lock("=============================== EOD REPORTS ===============================")
-    for report in reports:
-        print_with_lock(json.dumps(report, indent=4))
-    print_with_lock("===========================================================================")
+    reports.print_eod_reports()
 
     # tidy up after ourselves
     r.logout()
@@ -295,4 +303,9 @@ def run_traderbot():
 
 # TODO figure out how to backtest this all on historical data
 if __name__ == "__main__":
-    run_traderbot()
+    # run_traderbot()
+    CONFIG = get_json_dict()
+    login = log_in_to_robinhood()
+    
+    from position import OpenStockPosition
+    pos = OpenStockPosition('GPRO', 12.41)

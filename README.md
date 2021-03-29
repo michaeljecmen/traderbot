@@ -22,6 +22,10 @@ which is objectively a shitty company.
 
 Since I first broke ground on this project Alpaca and TD Ameritrade have also started offering fractional trading via their APIs, so if there's desire for that or I get bored I could port this to either of those platforms.
 
+## First Time?
+Head down to [Other Setup](#other-setup) and downgrade your Robinhood account to use Robinhood Cash. This takes the longest out of any section on the tutorial as it
+relies on RH actually doing something on their end, which can take several business days. Once you've started that process, go ahead and start the installation.
+
 ## Installation Process
 The following tutorial assumes you have access to a linux terminal with python3 installed. Look up how to do that or talk to me in real life if you
 don't know how to do that part.
@@ -97,6 +101,33 @@ except:
 </li>
 </ol>
 
+## Other Setup
+If you have a Robinhood Instant account (which is your account setting by default on RH), you'll need to transition it to an Robinhood Cash account, which can 
+take a few business days. This is necessary because anyone trading on margin (which includes <i>all</i> RH Instant users, regardless of whether or not you actually trade on margin) is subject to FINRA's Pattern Day Trader rules. You'll be flagged as a PDT and banned from trading for 90 days if you make more than 4 day trades (where a day trade is a buy and sell of the same symbol in the same day) in 5 consecutive days. This is unrelated to RH, just an actual legal rule.
+
+<b>That said</b>, you can get around this and continue using a Robinhood Instant account if you have $25,000 cash in your account at the end of each trading day.
+This needs to be all cash, you can't have some margin, whatever that means. If you are sure this applies to you, you can skip this setup step.
+
+Anyhow, in order to downgrade from an Instant account to a Cash account, you just need to send them an email at <code>support@robinhood.com</code> with the following information:
+<ul>
+<li>Confirmation that you have $0.00 in unsettled funds and no pending transactions. You can view your unsettled funds in the Account->Withdrawable Cash section and your pending transactions in the History section of the account menu. If you're on mobile, go to Account->Transfers->Withdrawable Cash->Learn More. You should see $0 in unsettled funds before you proceed. This usually takes a few business days if you've recently made a trade, so lie low for a few and let that number drop to zero.</li>
+<li>Your feedback on why you no longer want to use Robinhood Instant.</li>
+<li>Your understanding that you might not be able to re-upgrade to Robinhood Instant at a later date.</li>
+</ul>
+
+If you're sold on all of this, go ahead and send the email. Here's what I sent, if you need a template:
+
+```
+Hello,
+
+I'd like to transition my account from Robinhood Instant to Robinhood Cash, please.
+
+I'm currently have no unsettled funds and no pending transactions, I'd like to change to day trade with my cash more regularly, and I understand I may not be able to re-upgrade my account in the future.
+
+Thanks!
+Michael
+```
+
 ## Usage
 TODO talk about configuring the strategy
 
@@ -111,7 +142,8 @@ According to one user who got their account flagged: "keep the day trade counts 
 account before publishing the bot.
 
 ### start-of-day and end-of-day
-If your Robinhood account has access to after-hours and/or pre-market trading, go ahead and change these. Otherwise, stick to the 9:30 -> 16:00 EST normal market hours.
+If your Robinhood account has access to after-hours and/or pre-market trading, go ahead and change these. Otherwise, stick to the 9:30 -> 16:00 EST normal market hours. Cash accounts DO have access to these special hours, so if you have a Cash account rather than an Instant account (see [Other Setup](#other-setup)) you can
+change these to the normal 9:00-17:00.
 
 ## Dependencies
 Feel free to upgrade the version on the robin-stocks package in <code>requirements.txt</code>, if you're certain the api has not 

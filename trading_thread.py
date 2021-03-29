@@ -10,29 +10,31 @@ from position import OpenPaperPosition, OpenStockPosition
 from singletons.market_data import MarketData
 from singletons.trade_capper import TradeCapper
 from utilities import print_with_lock
+from traderbot_exception import TraderbotException
 
 class TradingThread (threading.Thread):
     # lock to keep everything in order during construction
     ctor_lock = threading.Lock()
 
-    # true constants -- don't buy with less than 10 cents
-    BUDGET_THRESHHOLD = 0.10
+    # true constants -- don't buy with less than 1 dollar
+    BUDGET_THRESHHOLD = 1.00
 
     # these must be reader locked. they are updated by the outer thread
     market_data = {}
     market_time = {}
     buying_power = {}
     trade_capper = {}
+    reports = {}
 
     # classwide constants (after initialization)
     take_profit_percent = 0.01
     max_loss_percent = 0.01
     paper_trading = True
 
-    def __init__(self, ticker, market_data, market_time, buying_power, trade_capper, strategy, take_profit_percent, max_loss_percent, paper_trading=True):
+    def __init__(self, ticker, market_data, market_time, buying_power, trade_capper, strategy, reports, take_profit_percent, max_loss_percent, paper_trading=True):
         # safety first when setting class variables
         threading.Thread.__init__(self)
-        with self.ctor_lock: # TODO each thread tracks its own stats and they all print together at the end
+        with self.ctor_lock:
             # set shared concurrent data
             TradingThread.market_data = market_data
             TradingThread.market_time = market_time
@@ -41,14 +43,14 @@ class TradingThread (threading.Thread):
             TradingThread.take_profit_percent = take_profit_percent
             TradingThread.max_loss_percent = max_loss_percent
             TradingThread.paper_trading = paper_trading
+            TradingThread.reports = reports
 
         self.ticker = ticker
         self.position = None
         self.strategy = strategy
-        self.report = {}
 
         # will be overridden on run()
-        self.init_time = datetime().now()
+        self.init_time = datetime.now()
 
         # tracks the following information:
         # {
@@ -62,9 +64,6 @@ class TradingThread (threading.Thread):
 
         # net profit/loss
         self.net = 0.0
-
-        # make sure we do not have an open position. 
-        # if we do, close it immediately TODO
         
     def run(self):
         self.init_time = datetime.now()
@@ -82,10 +81,7 @@ class TradingThread (threading.Thread):
             self.looking_to_sell()
         
         # end of the line for us, generate our report
-        try:
-            self.generate_report()
-        except:
-            print_with_lock("cannot generate report!")
+        self.generate_report()
 
     def open_position(self):
         # do not buy if we're out of funds!
@@ -94,7 +90,14 @@ class TradingThread (threading.Thread):
             # don't make trades for under a certain threshhold
             return
         if self.paper_trading:
-            self.position = OpenPaperPosition(self.ticker, budget, self.market_data)
+            # if the order timed out or was rejected for some other reason
+            # then try again when next relevant
+            try:
+                self.position = OpenPaperPosition(self.ticker, budget, self.market_data)
+            except TraderbotException as te:
+                print_with_lock("open position exception:", str(te))
+                self.position = None
+                return
         else:
             self.position = OpenStockPosition(self.ticker, budget, self.market_data)
         
@@ -108,7 +111,12 @@ class TradingThread (threading.Thread):
         })
 
     def close_position(self):
-        close_price = self.position.close()
+        close_price = 0.0
+        try:
+            close_price = self.position.close()
+        except TraderbotException as te:
+            print_with_lock("close position exception:", str(te))
+            return
         ts = datetime.now()
         qty = self.position.get_quantity()
         self.buying_power.add_funds(close_price*qty)
@@ -132,17 +140,16 @@ class TradingThread (threading.Thread):
             if current_price >= open_price * 1+self.take_profit_percent:
                 # closing for profit
                 self.close_position()
-                return
             if current_price <= 1-self.max_loss_percent * open_price:
                 # closing for loss
                 self.close_position()
-                return
         
         # if we are here, that means time left to trade has run out and we have open position -- bad
         self.close_position()
 
     def generate_report(self):
-        """Generates and returns a report regarding this thread's success throughout the day."""
+        """Generates a report regarding this thread's success throughout the day.
+        Adds that report to the shared reports object."""
         # ticker
         # strategy
         # net
@@ -171,12 +178,12 @@ class TradingThread (threading.Thread):
                 num_neutral += 1
         
 
-        self.report = {
+        report = {
             "ticker": self.ticker,
             "strategy": self.strategy.get_name(),
             "traderbot net performance": self.net,
             "total thread lifetime": str(eod_time - self.init_time),
-            "total trades made (trade = opening and closing a position)": len(self.statistics),
+            "total trades made": len(self.statistics),
             "total profitable trades": num_profitable,
             "total unprofitable trades": num_unprofitable,
             "total neutral trades": num_neutral,
@@ -186,8 +193,9 @@ class TradingThread (threading.Thread):
         }
 
         if len(self.statistics) != 0:
-            self.report["first position opened at"] = str(self.statistics[0]['open_time'])
-            self.report["last position closed at"] = str(self.statistics[-1]['close_time'])
+
+            report["first position opened at"] = str(self.statistics[0]['open_time'].time())
+            report["last position closed at"] = str(self.statistics[-1]['close_time'].time())
 
             def add_times(s1, mic1, s2, mic2):
                 secs = s1 + s2
@@ -217,12 +225,18 @@ class TradingThread (threading.Thread):
                     worst_stat = stat
 
             time_held = timedelta(seconds=time_held_secs, microseconds=time_held_micros)
-            self.report["time held for"] = str(time_held)
+            report["time held for"] = str(time_held)
 
-            self.report["best trade"] = best_stat
-            self.report["best trade"]["net_profit"] = best
-            self.report["worst trade"] = worst_stat
-            self.report["worst trade"]["net_profit"] = worst
-
-    def get_eod_report(self):
-        return self.report
+            # avoid the strange bug where best and worst trade are same
+            # so we call .time() on a string in report["worst trade"]["open_time"].time()
+            if abs(best - worst) > .001:
+                report["best trade"] = best_stat
+                report["best trade"]["open_time"] = str(report["best trade"]["open_time"].time())
+                report["best trade"]["close_time"] = str(report["best trade"]["close_time"].time())
+                report["best trade"]["net_profit"] = best
+                report["worst trade"] = worst_stat
+                report["worst trade"]["open_time"] = str(report["worst trade"]["open_time"].time())
+                report["worst trade"]["close_time"] = str(report["worst trade"]["close_time"].time())
+                report["worst trade"]["net_profit"] = worst
+        
+        self.reports.add_eod_report(report)

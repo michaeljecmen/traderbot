@@ -62,7 +62,7 @@ def get_trending_socially_positive_tickers(api_key):
 
 
 if "--help" in sys.argv or "-h" in sys.argv:
-    print("usage: python3 scripts/positively-trending-tickers.py")
+    print("usage: ./scripts/positively-trending-tickers.py")
     sys.exit(0)
 
 print(get_trending_socially_positive_tickers(get_api_key()))

@@ -5,9 +5,13 @@ from utilities import print_with_lock
 
 class BuyingPower:
     """Threadsafe class for shared access/updating of budget/buying power."""
-    def __init__(self, percent_to_spend):
+    def __init__(self, percent_to_spend, budget=None):
         self.lock = rwlock.RWLockWrite()
-        self.buying_power = float(r.profiles.load_account_profile(info='buying_power'))
+        self.buying_power = 0.0
+        if budget is None:
+            self.buying_power = float(r.profiles.load_account_profile(info='buying_power'))
+        else:
+            self.buying_power = min(float(r.profiles.load_account_profile(info='buying_power')), budget)
         self.amount_per_buy = self.buying_power * percent_to_spend
 
     def spend_and_get_amount(self):

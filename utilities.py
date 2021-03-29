@@ -4,7 +4,6 @@ import re
 
 from traderbot_exception import APIException, ConfigException
 
-
 _print_lock = threading.Lock()
 
 def print_with_lock(*args):
@@ -12,7 +11,6 @@ def print_with_lock(*args):
         for arg in args:
             print(arg, end=' ')
         print()
-
 
 def get_mean_stddev(arr):
     """Return mean and stddev of the given array."""

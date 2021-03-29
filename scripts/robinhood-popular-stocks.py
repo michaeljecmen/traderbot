@@ -10,7 +10,7 @@ import pprint
 import robin_stocks.robinhood as r
 
 if "--help" in sys.argv or "-h" in sys.argv:
-    print("usage: python3 scripts/robinhood-popular-stocks.py")
+    print("usage: ./scripts/robinhood-popular-stocks.py")
     sys.exit(0)
 
 # get data

@@ -169,7 +169,7 @@ class MarketData:
         return self.get_ticker_data_for_ticker(ticker).get_trend()
     
     def get_first_price_of_day_for_ticker(self, ticker):
-        return self.get_data_for_ticker(ticker).get_first_price_of_day()
+        return self.get_ticker_data_for_ticker(ticker).get_first_price_of_day()
 
     def print_data(self):
         """Pretty printing for the internal data of this object."""

@@ -1,9 +1,10 @@
+import time
+
 import robin_stocks.robinhood as r
 
 from singletons.market_data import MarketData
-
 from utilities import print_with_lock
-
+from traderbot_exception import TraderbotException
 
 class Position:
     """Base class for minor data handling and shared printing functionality."""
@@ -40,29 +41,62 @@ class Position:
 
 class OpenStockPosition(Position):
     """Class used for real trading."""
-
+    # time out in 5s if order not filled
+    TIMEOUT = 5
     def __init__(self, ticker, budget):
         """Blocks until the order is filled, 
         or the timeout passes (in which case the order is cancelled and retried)."""
         # open the position given the allocated budget
         resp = r.orders.order_buy_fractional_by_price(
             ticker, budget, timeInForce='gfd', extendedHours=False, jsonify=True)
-        print_with_lock("ORDER RESPONSE DICT: ", resp)
-        # self.quantity = resp["quantity"]
-        # self.open_price = resp["price"] # TODO test and confirm that this works
-        super().__init__(ticker, resp["quantity"], resp["price"])
+        resp = self.monitor_order(resp, ticker)
+        print_with_lock("OPEN", resp)
+        quantity = resp['cumulative_quantity']
+        open_price = resp['average_price']
+        super().__init__(ticker, float(quantity), float(open_price))
         self.print_open()
-
 
     def close(self):
         """Returns the close price. Blocks until the order is filled, 
         or the timeout passes (in which case the order is cancelled and retried)."""
-        # robin_stocks.robinhood.orders.order_sell_fractional_by_quantity(symbol, quantity, timeInForce='gfd', priceType='bid_price', extendedHours=False, jsonify=True)
-        # then confirm that sell actually worked
-        close_price = 0.0
+        resp = r.order_sell_fractional_by_quantity(
+            self.ticker, self.quantity, timeInForce='gfd', priceType='bid_price', extendedHours=False, jsonify=True)
+        resp = self.monitor_order(resp, self.ticker)
+        print_with_lock("CLOSE", resp)
+        if resp['cumulative_quantity'] != self.quantity:
+            raise TraderbotException(
+                "sold {} shares but wanted to sell {} shares of {}. response dict {}".format(
+                    resp['cumulative_quantity'], self.quantity, self.ticker, resp))
+        close_price = resp['average_price']
         self.print_close(close_price)
-        return close_price # TODO
+        return close_price
+    
+    def monitor_order(self, resp, ticker):
+        """Monitors the order with the given ID until it is filled or TIMEOUT is exceeded, in which case the order is cancelled.
+        Returns the response dictionary or throws, depending on whether or not the order succeeded or failed.
+        Checks for fill status twice every second."""
+        order_id = resp.get('id', None)
+        if order_id is None:
+            raise TraderbotException("initial order for {} failed".format(ticker))
+        
+        # before waiting check if we already filled it
+        if resp['state'] == 'filled':
+            return resp
 
+        # then check every half second
+        for _ in range(2*self.TIMEOUT):
+            resp = r.orders.get_stock_order_info(order_id)
+            if resp['state'] == 'filled':
+                return resp
+            time.sleep(0.5)
+        # TODO if partially filled here need to tell the caller as much
+        # what the actual qty and price are so they can sell accordingly
+        # same for when they actually sell. maybe return remaining position
+        # so it works for both
+        print_with_lock("TIMING OUT BUT DEBUG IN CASE PARTIAL FILL: ", resp)
+        resp = r.cancel_stock_order(order_id)
+        print_with_lock("debug: response from cancelling stock order: ", resp)
+        raise TraderbotException("order for {} timed out".format(ticker))
 
 class OpenPaperPosition(Position):
     """Class used for paper trading."""
