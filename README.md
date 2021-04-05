@@ -128,6 +128,8 @@ Thanks!
 Michael
 ```
 
+Wait for your account to be officially downgraded, and you're set to run the bot!
+
 ## Usage
 TODO talk about configuring the strategy
 
@@ -177,3 +179,7 @@ change back to alpaca_trade_api==1.0.1 if you have problems with asyncio event l
 otherwise download new package version and run it
 
 test double down on tickers in diff strategies
+
+trade crypto -- 24/7 always opps for moneymaking
+polygon does not limit api usage with pro plan, for crypto that's 50$ a month which is a great price
+alpaca does not either, trade crypto on alpaca is future move

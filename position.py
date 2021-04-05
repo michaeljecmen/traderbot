@@ -41,8 +41,9 @@ class Position:
 
 class OpenStockPosition(Position):
     """Class used for real trading."""
-    # time out in 5s if order not filled
-    TIMEOUT = 5
+    # time out in 10s if order not filled
+    TIMEOUT = 10
+    THRESHOLD = 0.0001
     def __init__(self, ticker, budget):
         """Blocks until the order is filled, 
         or the timeout passes (in which case the order is cancelled and retried)."""
@@ -63,7 +64,7 @@ class OpenStockPosition(Position):
             self.ticker, self.quantity, timeInForce='gfd', priceType='bid_price', extendedHours=False, jsonify=True)
         resp = self.monitor_order(resp, self.ticker)
         print_with_lock("CLOSE", resp)
-        if resp['cumulative_quantity'] != self.quantity:
+        if abs(resp['cumulative_quantity'] - self.quantity) > THRESHOLD:
             raise TraderbotException(
                 "sold {} shares but wanted to sell {} shares of {}. response dict {}".format(
                     resp['cumulative_quantity'], self.quantity, self.ticker, resp))
@@ -86,8 +87,10 @@ class OpenStockPosition(Position):
         # then check every half second
         for _ in range(2*self.TIMEOUT):
             resp = r.orders.get_stock_order_info(order_id)
-            if resp['state'] == 'filled':
+            if resp['state'] == 'filled': # TODO orders are being cancelled unexpectedly
                 return resp
+            if resp['state'] == 'cancelled':
+                raise TraderbotException("order for {} was cancelled unexpectedly: {}".format(ticker, resp))
             time.sleep(0.5)
         # TODO if partially filled here need to tell the caller as much
         # what the actual qty and price are so they can sell accordingly

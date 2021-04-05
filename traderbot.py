@@ -46,7 +46,7 @@ def pick_humanlike_start_time():
     # pick start time within first 30 minutes of market open
     # need dummy year month day here
     lower_bound = datetime(1,1,1, START_OF_DAY.hour, START_OF_DAY.minute, START_OF_DAY.second)
-    upper_bound = lower_bound + timedelta(hours=0, minutes=00) # TODO change back
+    upper_bound = lower_bound + timedelta(hours=0, minutes=30)
 
     # interval from 0 to this value in seconds is our go-range
     interval = (upper_bound - lower_bound).seconds
@@ -308,4 +308,6 @@ if __name__ == "__main__":
     login = log_in_to_robinhood()
     
     from position import OpenStockPosition
-    pos = OpenStockPosition('GPRO', 12.41)
+    pos = OpenStockPosition('AAPL', 12.41)
+    time.sleep(10)
+    pos.close()
