@@ -308,6 +308,6 @@ if __name__ == "__main__":
     login = log_in_to_robinhood()
     
     from position import OpenStockPosition
-    pos = OpenStockPosition('AAPL', 12.41)
+    pos = OpenStockPosition('ETC', 1.00)
     time.sleep(10)
     pos.close()

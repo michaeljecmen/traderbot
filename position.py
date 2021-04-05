@@ -41,17 +41,18 @@ class Position:
 
 class OpenStockPosition(Position):
     """Class used for real trading."""
-    # time out in 10s if order not filled
-    TIMEOUT = 10
+    # time out in 60s if order not filled
+    TIMEOUT = 60
     THRESHOLD = 0.0001
     def __init__(self, ticker, budget):
         """Blocks until the order is filled, 
         or the timeout passes (in which case the order is cancelled and retried)."""
         # open the position given the allocated budget
-        resp = r.orders.order_buy_fractional_by_price(
-            ticker, budget, timeInForce='gfd', extendedHours=False, jsonify=True)
+        resp = r.order_buy_crypto_by_price(
+            ticker, budget, timeInForce='gtc', jsonify=True)
+        print_with_lock("INITIAL:", resp)
         resp = self.monitor_order(resp, ticker)
-        print_with_lock("OPEN", resp)
+        print_with_lock("OPEN:", resp)
         quantity = resp['cumulative_quantity']
         open_price = resp['average_price']
         super().__init__(ticker, float(quantity), float(open_price))
@@ -60,15 +61,15 @@ class OpenStockPosition(Position):
     def close(self):
         """Returns the close price. Blocks until the order is filled, 
         or the timeout passes (in which case the order is cancelled and retried)."""
-        resp = r.order_sell_fractional_by_quantity(
-            self.ticker, self.quantity, timeInForce='gfd', priceType='bid_price', extendedHours=False, jsonify=True)
+        resp = r.order_sell_crypto_by_quantity(
+            self.ticker, self.quantity, timeInForce='gtc', jsonify=True)
         resp = self.monitor_order(resp, self.ticker)
         print_with_lock("CLOSE", resp)
-        if abs(resp['cumulative_quantity'] - self.quantity) > THRESHOLD:
+        if abs(float(resp['cumulative_quantity']) - self.quantity) > self.THRESHOLD: #TODO not possible? remove?
             raise TraderbotException(
                 "sold {} shares but wanted to sell {} shares of {}. response dict {}".format(
                     resp['cumulative_quantity'], self.quantity, self.ticker, resp))
-        close_price = resp['average_price']
+        close_price = float(resp['average_price'])
         self.print_close(close_price)
         return close_price
     
@@ -79,15 +80,15 @@ class OpenStockPosition(Position):
         order_id = resp.get('id', None)
         if order_id is None:
             raise TraderbotException("initial order for {} failed".format(ticker))
-        
+
         # before waiting check if we already filled it
         if resp['state'] == 'filled':
             return resp
 
         # then check every half second
         for _ in range(2*self.TIMEOUT):
-            resp = r.orders.get_stock_order_info(order_id)
-            if resp['state'] == 'filled': # TODO orders are being cancelled unexpectedly
+            resp = r.get_crypto_order_info(order_id)
+            if resp['state'] == 'filled':
                 return resp
             if resp['state'] == 'cancelled':
                 raise TraderbotException("order for {} was cancelled unexpectedly: {}".format(ticker, resp))
@@ -97,9 +98,10 @@ class OpenStockPosition(Position):
         # same for when they actually sell. maybe return remaining position
         # so it works for both
         print_with_lock("TIMING OUT BUT DEBUG IN CASE PARTIAL FILL: ", resp)
-        resp = r.cancel_stock_order(order_id)
+        resp = r.cancel_crypto_order(order_id)
         print_with_lock("debug: response from cancelling stock order: ", resp)
         raise TraderbotException("order for {} timed out".format(ticker))
+
 
 class OpenPaperPosition(Position):
     """Class used for paper trading."""

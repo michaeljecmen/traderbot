@@ -183,3 +183,19 @@ test double down on tickers in diff strategies
 trade crypto -- 24/7 always opps for moneymaking
 polygon does not limit api usage with pro plan, for crypto that's 50$ a month which is a great price
 alpaca does not either, trade crypto on alpaca is future move
+
+problems:
+cannot trade with value of previous closed trades until 2 days after the position was closed. this is
+pretty universal, and not broker/platform specific. this is only the case for cash accounts, however,
+and margin accounts (provided you have over 25k of assets in the acct at each day end) are free to trade
+with the value of closed positions instantly.
+
+crypto does not have these rules!
+
+TODO
+try RH crypto, see if the rh limiting can be figured out, then jump ship to alpaca if neither consistent
+either way need instant accounts back so alpaca is the move anyways
+add limit order spreads to crypto, limit order at open+1% and stop loss at open-1%
+
+jesus christ:
+Market orders on Robinhood are placed as limit orders at 1% above the market price in order to protect customers from overdraft.
