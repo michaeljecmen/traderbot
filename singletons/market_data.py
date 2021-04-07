@@ -11,11 +11,12 @@ class TickerData:
     locks the reading and writing of it. Data is an array of the last
     N prices of the stock."""
 
-    def __init__(self, curr_price, history_len, trend_len):
+    def __init__(self, ticker, curr_price, history_len, trend_len):
         """n MUST be a power of 2 >= 8 for the circular buffer to work, which is crucial
         for this class' operations to be O(1)"""
         assert(trend_len >= 2 and trend_len <= history_len) # k must be at least 2
         self.lock = rwlock.RWLockWrite()
+        self.ticker = ticker
 
         # important: do not modify these two names, they are used by
         # strategies/simple_moving_average. unfortunate breach
@@ -32,6 +33,7 @@ class TickerData:
         self.first_price_seen = -1
 
     async def trade_update_callback(self, t):
+        print_with_lock("{}: {}".format(self.ticker, t.price))
         with self.lock.gen_wlock():
             if len(self.prices) == self.history_len:
                 # circular buffer with bitmasking
@@ -141,7 +143,7 @@ class MarketData:
             # - most recent price
             # - rwlock
             # - callback function for stream that updates most recent price
-            ticker_data = TickerData(initial_data[self.tickers_to_indices[ticker]], history_len, trend_len)
+            ticker_data = TickerData(ticker, initial_data[self.tickers_to_indices[ticker]], history_len, trend_len)
             self.stream.subscribe_trades(ticker_data.trade_update_callback, ticker)
             self.data.append(ticker_data)
 

@@ -303,11 +303,4 @@ def run_traderbot():
 
 # TODO figure out how to backtest this all on historical data
 if __name__ == "__main__":
-    # run_traderbot()
-    CONFIG = get_json_dict()
-    login = log_in_to_robinhood()
-    
-    from position import OpenStockPosition
-    pos = OpenStockPosition('ETC', 1.00)
-    time.sleep(10)
-    pos.close()
+    run_traderbot()
