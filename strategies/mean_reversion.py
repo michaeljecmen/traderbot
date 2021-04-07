@@ -13,10 +13,10 @@ class MeanReversion(Strategy):
 
         if trend == "down":
             return False
-        
+
         # otherwise trending up, just check if price is X% below mean
         # 5% below mean is 95% of mean, if curr price is below that we're in
         return curr_price < mean*(1-self.percent)
-    
+
     def get_name(self):
         return 'MeanReversion with percent={}'.format(self.percent)

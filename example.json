@@ -48,5 +48,6 @@
     "paper-trading": true,
     "take-profit-percent": 1,
     "max-loss-percent": 1,
-    "spend-percent": 20
+    "spend-percent": 20,
+    "instant": false
 }

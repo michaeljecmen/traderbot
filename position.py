@@ -51,10 +51,9 @@ class OpenStockPosition(Position):
         resp = r.orders.order_buy_fractional_by_price(
             ticker, budget, timeInForce='gfd', extendedHours=False, jsonify=True)
         resp = self.monitor_order(resp, ticker)
-        print_with_lock("OPEN", resp)
-        quantity = resp['cumulative_quantity']
-        open_price = resp['average_price']
-        super().__init__(ticker, float(quantity), float(open_price))
+        quantity = float(resp['cumulative_quantity'])
+        open_price = float(resp['average_price'])
+        super().__init__(ticker, quantity, open_price)
         self.print_open()
 
     def close(self):
@@ -63,12 +62,11 @@ class OpenStockPosition(Position):
         resp = r.order_sell_fractional_by_quantity(
             self.ticker, self.quantity, timeInForce='gfd', priceType='bid_price', extendedHours=False, jsonify=True)
         resp = self.monitor_order(resp, self.ticker)
-        print_with_lock("CLOSE", resp)
-        if abs(resp['cumulative_quantity'] - self.quantity) > THRESHOLD:
+        if abs(float(resp['cumulative_quantity']) - self.quantity) > self.THRESHOLD:
             raise TraderbotException(
                 "sold {} shares but wanted to sell {} shares of {}. response dict {}".format(
                     resp['cumulative_quantity'], self.quantity, self.ticker, resp))
-        close_price = resp['average_price']
+        close_price = float(resp['average_price'])
         self.print_close(close_price)
         return close_price
     

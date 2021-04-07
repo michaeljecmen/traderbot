@@ -5,9 +5,10 @@ from utilities import print_with_lock
 
 class BuyingPower:
     """Threadsafe class for shared access/updating of budget/buying power."""
-    def __init__(self, percent_to_spend, budget=None):
+    def __init__(self, percent_to_spend, instant=False, budget=None):
         self.lock = rwlock.RWLockWrite()
         self.buying_power = 0.0
+        self.instant = instant
         if budget is None:
             self.buying_power = float(r.profiles.load_account_profile(info='buying_power'))
         else:
@@ -28,6 +29,10 @@ class BuyingPower:
 
     def add_funds(self, amount):
         """Use this when you close a position to add back the funds earned."""
+        if not instant:
+            # cannot add funds until 2 days later to non instant accounts
+            return
+
         with self.lock.gen_wlock():
             self.buying_power += amount
             print_with_lock("your account now has ${}".format(self.buying_power))

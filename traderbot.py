@@ -220,6 +220,7 @@ def run_traderbot():
     TREND_SIZE = CONFIG.get("trend-len", 3)
     if TREND_SIZE > HISTORY_SIZE:
         raise ConfigException("trend-len must be less than or equal to history-len")
+    IS_INSTANT_ACCT = CONFIG.get("instant", False)
 
     zero_time = timedelta()
 
@@ -251,7 +252,7 @@ def run_traderbot():
     # these variables are shared by each trading thread. they are written by this
     # main traderbot thread, and read by each trading thread individually
     market_data = MarketData(ALL_TICKERS, ALPACA_KEY, ALPACA_SECRET_KEY, HISTORY_SIZE, TREND_SIZE)
-    buying_power = BuyingPower(SPEND_PERCENT, BUDGET)
+    buying_power = BuyingPower(SPEND_PERCENT, IS_INSTANT_ACCT, BUDGET)
     trade_capper = TradeCapper(TRADE_LIMIT)
 
     # now that market open is today, update EOD for time checking
@@ -303,11 +304,4 @@ def run_traderbot():
 
 # TODO figure out how to backtest this all on historical data
 if __name__ == "__main__":
-    # run_traderbot()
-    CONFIG = get_json_dict()
-    login = log_in_to_robinhood()
-    
-    from position import OpenStockPosition
-    pos = OpenStockPosition('AAPL', 12.41)
-    time.sleep(10)
-    pos.close()
+    run_traderbot()

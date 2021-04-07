@@ -99,7 +99,12 @@ class TradingThread (threading.Thread):
                 self.position = None
                 return
         else:
-            self.position = OpenStockPosition(self.ticker, budget, self.market_data)
+            try:
+                self.position = OpenStockPosition(self.ticker, budget)
+            except TraderbotException as te:
+                print_with_lock("open position exception:", str(te))
+                self.position = None
+                return
         
         # update statistics
         self.statistics.append({
@@ -144,8 +149,9 @@ class TradingThread (threading.Thread):
                 # closing for loss
                 self.close_position()
         
-        # if we are here, that means time left to trade has run out and we have open position -- bad
-        self.close_position()
+        if self.position is not None:
+            # if we are here, that means time left to trade has run out and we have open position -- bad
+            self.close_position()
 
     def generate_report(self):
         """Generates a report regarding this thread's success throughout the day.
