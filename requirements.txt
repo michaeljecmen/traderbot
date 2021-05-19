@@ -1,8 +1,6 @@
 robin-stocks==2.0.3
 pandas==1.2.1
 pandas_market_calendars==1.6.1
-polygon-api-client==0.1.9
-yfinance==0.1.55
+requests==2.13.0
 readerwriterlock==1.0.8
-alpaca_trade_api==1.1.0
-requests==2.25.1
+cbpro==1.1.4
