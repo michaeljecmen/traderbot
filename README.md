@@ -199,3 +199,10 @@ add limit order spreads to crypto, limit order at open+1% and stop loss at open-
 
 jesus christ:
 Market orders on Robinhood are placed as limit orders at 1% above the market price in order to protect customers from overdraft.
+
+coinbase websocketclient class with overridden methods to mimick alpaca price streaming
+nice
+
+order placing similar enough
+
+TODO just port the above two things on the current branch

@@ -15,6 +15,7 @@ import pandas_market_calendars as mcal
 import pyotp
 from alpaca_trade_api.stream import Stream
 import yfinance as yf
+import cbpro
 
 from trading_thread import TradingThread
 from singletons.market_data import MarketData, TickerData
@@ -301,6 +302,18 @@ def run_traderbot():
     r.logout()
     print_with_lock("logged out user {}".format(USERNAME))
 
-# TODO figure out how to backtest this all on historical data
 if __name__ == "__main__":
-    run_traderbot()
+    # run_traderbot()
+    public_client = cbpro.PublicClient()
+    # TODO get these fields from the config
+    auth_client = cbpro.AuthenticatedClient(key, b64secret, passphrase)
+    # print(auth_client.auth.__dict__)
+    accounts = auth_client.get_accounts()
+    # print(accounts)
+    # auth works, nice
+    # orders = public_client.get_product_order_book('BTC-USD', level=2)
+    # print(orders)
+    # eth_hist = public_client.get_product_historic_rates('ETH-USD')
+    # print(eth_hist)
+    eth_stats = public_client.get_product_24hr_stats('ETH-USD')
+    print(eth_stats)
