@@ -9,11 +9,9 @@ import re
 import pprint
 
 import requests
-import robin_stocks.robinhood as r
 import pandas as pd
 import pandas_market_calendars as mcal
 import pyotp
-from alpaca_trade_api.stream import Stream
 import yfinance as yf
 import cbpro
 
@@ -33,8 +31,9 @@ CONFIG_FILENAME = "config.json"
 # do not change these -- will be overwritten by config.json reading anyways
 # only at filescope for scoping issues, should be treated as constants by all 
 # functions and threads (will only be read after config reading)
-USERNAME = ""
-PASSWORD = ""
+KEY = ""
+B64SECRET = ""
+PASSPHRASE = ""
 PAPER_TRADING = ""
 TIME_ZONE = ""
 START_OF_DAY = ""
@@ -151,16 +150,11 @@ def block_until_start_trading():
         time_until_start_trading = start_of_day_datetime - datetime.now()
     print_with_lock("beginning trading")
 
-def log_in_to_robinhood():
+def log_in_to_coinbase():
     # only use mfa login if it is enabled
-    mfa_code=None
-    if "mfa-setup-code" in CONFIG.keys():
-        # gets current mfa code
-        totp = pyotp.TOTP(CONFIG["mfa-setup-code"]).now()
-        print_with_lock("DEBUG: current mfa code:", totp)
-    login = r.login(USERNAME, PASSWORD, mfa_code=mfa_code)
-    print_with_lock("logged in as user {}".format(USERNAME))
-    return login
+    auth_client = cbpro.AuthenticatedClient(KEY, B64SECRET, PASSPHRASE)
+    print_with_lock("logged in")
+    return auth_client
 
 def get_json_dict():
     """Return the json dictionary found in config.json, throwing otherwise.
@@ -194,26 +188,17 @@ def run_traderbot():
     Spawns a thread for each ticker that trades on that symbol
     for the duration of the day."""
     # get info from config file and log in
-    global USERNAME, PASSWORD, PAPER_TRADING, TIME_ZONE
-    global START_OF_DAY, END_OF_DAY, TRADE_LIMIT, CONFIG
+    global KEY, B64SECRET, PASSPHRASE, PAPER_TRADING, TRADE_LIMIT, CONFIG
     CONFIG = get_json_dict()
-    USERNAME = CONFIG["username"]
-    PASSWORD = CONFIG["password"]
+    KEY = CONFIG["key"]
+    B64SECRET = CONFIG["b64secret"]
+    PASSPHRASE = CONFIG["passphrase"]
     MAX_LOSS_PERCENT = CONFIG["max-loss-percent"]/100.0
     TAKE_PROFIT_PERCENT = CONFIG["take-profit-percent"]/100.0
     SPEND_PERCENT = CONFIG["spend-percent"]/100.0
     PAPER_TRADING = CONFIG["paper-trading"]
-    TIME_ZONE = CONFIG.get("time-zone-pandas-market-calendars", "America/New_York")
-    full_start_time_str = CONFIG.get("start-of-day", "09:30") + "={}".format(TIME_ZONE)
-    full_end_time_str = CONFIG.get("end-of-day", "16:00") + "={}".format(TIME_ZONE)
-    START_OF_DAY = datetime.strptime(full_start_time_str, "%H:%M=%Z").time()
-    END_OF_DAY = datetime.strptime(full_end_time_str, "%H:%M=%Z").time()
     TRADE_LIMIT = CONFIG.get("max-trades-per-day", None)
     BUDGET = CONFIG.get("budget", None)
-    END_TIME_STR = CONFIG.get("end-time", None)
-    START_TIME_STR = CONFIG.get("start-time", None)
-    ALPACA_KEY = CONFIG["alpaca-api-key"]
-    ALPACA_SECRET_KEY = CONFIG["alpaca-secret-key"]
     STRATEGIES_DICT = CONFIG["strategies"]
     HISTORY_SIZE = CONFIG.get("history-len", 16)
     if not ((HISTORY_SIZE & (HISTORY_SIZE-1) == 0) and HISTORY_SIZE != 0): 
@@ -224,7 +209,7 @@ def run_traderbot():
 
     zero_time = timedelta()
 
-    login = log_in_to_robinhood()
+    login = log_in_to_coinbase()
 
     # get list of unique tickers and enforce legality of strategies kv in the config
     ALL_TICKERS = []
@@ -234,31 +219,11 @@ def run_traderbot():
         ALL_TICKERS.extend(st['tickers'])
     ALL_TICKERS = list(set(ALL_TICKERS))
 
-    # generate parameters so we don't get flagged
-    START_OF_DAY, END_OF_DAY, TRADE_LIMIT = generate_humanlike_parameters()
-    datetime_fmt_str = '%H:%M:%S'
-    if END_TIME_STR is not None:
-        END_OF_DAY = datetime.strptime(END_TIME_STR, datetime_fmt_str).time()
-    if START_TIME_STR is not None:
-        START_OF_DAY = datetime.strptime(START_TIME_STR, datetime_fmt_str).time()
-
-    print_with_lock("param: will start trading today at:", START_OF_DAY)
-    print_with_lock("param: will stop trading today at:", END_OF_DAY)
-    print_with_lock("param: will make a maximum of {} trades today".format(TRADE_LIMIT))
-
-    # busy-spin until market open
-    block_until_market_open()
-
     # these variables are shared by each trading thread. they are written by this
     # main traderbot thread, and read by each trading thread individually
-    market_data = MarketData(ALL_TICKERS, ALPACA_KEY, ALPACA_SECRET_KEY, HISTORY_SIZE, TREND_SIZE)
+    market_data = MarketData(ALL_TICKERS, HISTORY_SIZE, TREND_SIZE)
     buying_power = BuyingPower(SPEND_PERCENT, BUDGET)
     trade_capper = TradeCapper(TRADE_LIMIT)
-
-    # now that market open is today, update EOD for time checking
-    now = datetime.now()
-    END_OF_DAY = datetime(now.year, now.month, now.day, END_OF_DAY.hour, END_OF_DAY.minute, END_OF_DAY.second, END_OF_DAY.microsecond)
-    market_time = MarketTime(END_OF_DAY)
     reports = Reports()
 
     # spawn thread for each ticker
@@ -272,7 +237,7 @@ def run_traderbot():
             if not strategy.is_relevant():
                 # don't add irrelevant tickers to the threadpool.
                 # long term could figure out how to remove this
-                # from the market data object too
+                # from the market data object too # TODO pointless for crypto which should be on 24hr?
                 continue
             threads.append(TradingThread(ticker, market_data, market_time, buying_power, trade_capper, strategy, reports, TAKE_PROFIT_PERCENT, MAX_LOSS_PERCENT, PAPER_TRADING))
 
@@ -303,17 +268,16 @@ def run_traderbot():
     print_with_lock("logged out user {}".format(USERNAME))
 
 if __name__ == "__main__":
-    # run_traderbot()
-    public_client = cbpro.PublicClient()
-    # TODO get these fields from the config
-    auth_client = cbpro.AuthenticatedClient(key, b64secret, passphrase)
+    run_traderbot()
+    # public_client = cbpro.PublicClient()
+    # auth_client = cbpro.AuthenticatedClient(key, b64secret, passphrase)
     # print(auth_client.auth.__dict__)
-    accounts = auth_client.get_accounts()
+    # accounts = auth_client.get_accounts()
     # print(accounts)
     # auth works, nice
     # orders = public_client.get_product_order_book('BTC-USD', level=2)
     # print(orders)
     # eth_hist = public_client.get_product_historic_rates('ETH-USD')
     # print(eth_hist)
-    eth_stats = public_client.get_product_24hr_stats('ETH-USD')
-    print(eth_stats)
+    # eth_stats = public_client.get_product_24hr_stats('ETH-USD')
+    # print(eth_stats)

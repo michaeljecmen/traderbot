@@ -1,8 +1,7 @@
 import threading
 
-import robin_stocks.robinhood as r
 from readerwriterlock import rwlock
-from alpaca_trade_api.stream import Stream
+import cbpro
 
 from utilities import print_with_lock, get_mean_stddev
 
@@ -123,18 +122,34 @@ class TickerData:
         with self.lock.gen_rlock():
             print_with_lock("TICKERDATA: ind={}, prices={}".format(self.ind, self.prices))
 
-
 class MarketData:
     """Threadsafe class that handles the concurrent reading and writing of the market data
     for the relevant tickers. Should really be a singleton."""
 
-    def __init__(self, tickers, alpaca_key, alpaca_secret_key, history_len, trend_len):
+    class CustomWebsocketClient(cbpro.WebsocketClient):
+        def on_open(self):
+            self.url = "wss://ws-feed.pro.coinbase.com/"
+            self.tickers = MarketData.tickers # TODO make sure this works
+            self.message_count = 0
+            print_with_lock("stream for {} started".format(self.tickers))
+        def on_message(self, msg):
+            self.message_count += 1
+            if 'price' in msg and 'type' in msg:
+                print_with_lock("Message type:", msg["type"],
+                        "\t@ {:.3f}".format(float(msg["price"])))
+            else:
+                print_with_lock("UNKNOWN MESSAGE: {}".format(msg))
+        def on_close(self):
+            print_with_lock("stream for {} ended".format(self.tickers))
+            print_with_lock("{} messages received".format(self.message_count))
+
+    def __init__(self, tickers, history_len, trend_len):
         # all for hashless O(1) access of our sweet sweet data
-        self.tickers = tickers
-        self.tickers_to_indices = {}
+        MarketData.tickers = tickers
+        self.tickers_to_indices = {} # TODO continue updating this
         for i in range(len(tickers)):
             self.tickers_to_indices[tickers[i]] = i
-        self.stream = Stream(alpaca_key, alpaca_secret_key, data_feed='iex')
+        self.stream = MarketData.CustomWebsocketClient()
 
         initial_data = r.stocks.get_latest_price(self.tickers, priceType=None, includeExtendedHours=True)
         self.data = []
