@@ -17,10 +17,9 @@ not expecting too much.
 
 Why Robinhood? Well, they offer fractional trading, which is pretty necessary
 if you don't have a lot of money and want to do rapid trading.
-And, of course, zero commission fees. This is not an endorsement of Robinhood,
-which is objectively a shitty company.
+And, of course, zero commission fees.
 
-Since I first broke ground on this project Alpaca and TD Ameritrade have also started offering fractional trading via their APIs, so if there's desire for that or I get bored I could port this to either of those platforms.
+Since I first broke ground on this project Alpaca and TD Ameritrade have also started offering fractional trading via their APIs, so if there's desire for that or I get bored I could port this to either of those platforms. I'm also looking into making a port of this for Coinbase.
 
 ## First Time?
 Head down to [Other Setup](#other-setup) and downgrade your Robinhood account to use Robinhood Cash. This takes the longest out of any section on the tutorial as it
